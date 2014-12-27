@@ -81,7 +81,7 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2014/12/26/how-i-started-my-hexo-website/">How to deploy hexo website and host on github</a>
+      <a class="article-title" href="/2014/12/26/how-i-started-my-hexo-website/">How to deploy a hexo website and host it on github</a>
     </h1>
   
 
@@ -89,17 +89,19 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>In order to deploy my hexo website I used two github respositories:</p>
+        <p>In order to deploy my hexo website I used two github repositories:</p>
 <ol>
 <li><p><strong>dddotcom.github.io</strong> / [username].github.io</p>
 <ul>
 <li>this repo will be used to host your deployed hexo website</li>
-<li>as long as it has an index.html file, it will display that on the webpage</li>
+<li>as long as it has an index.html file in the base of the repo directory, github will display it on your user page</li>
 </ul>
 </li>
 <li><p><strong>dddotcom.github.io-hexo</strong> / [username].github.io-hexo</p>
 <ul>
-<li>this repo will be used to version control the important files of your website so that it can be recovered if lost on your local machine<br>the following files are of particular importance:<ul>
+<li><p>this repo will be used to version control the important files of your website so that they can be recovered if they are ever lost</p>
+<p>the following files are of particular importance:</p>
+<ul>
 <li>scaffolds/*.md</li>
 <li>.gitignore</li>
 <li>_config.yml</li>
@@ -109,16 +111,20 @@
 </ul>
 </li>
 </ol>
-<p>First, I created a hexo project directory with the name: <strong>dddotcom.github.io-hexo</strong><br>I then initialized a git repository in that directory.</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">$ hexo init dddotcom.github.io-hexo</div><div class="line">$ <span class="built_in">cd</span> dddotcom.github.io-hexo</div><div class="line">$ npm install</div><div class="line"></div><div class="line">$ git init</div></pre></td></tr></table></figure>
+<p>Now let’s begin by creating a hexo project.  </p>
+<p>Create a hexo project directory with the name: <strong>[username].github.io-hexo</strong><br>In my case I used <strong>dddotcom.github.io-hexo</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">$ hexo init dddotcom.github.io-hexo</div><div class="line">$ <span class="built_in">cd</span> dddotcom.github.io-hexo</div><div class="line">$ npm install</div></pre></td></tr></table></figure>
 
-<p>I committed the previously mentioned important files</p>
+<p>Initialize a git repository in that directory.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ git init</div></pre></td></tr></table></figure>
+
+<p>Commit the previously mentioned important files</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">$ git add _config.yml packages.json .gitignore scaffolds\*.md</div><div class="line">$ git commit -m <span class="string">"initial commit"</span></div><div class="line">$ git remote add origin https://github.com/dddotcom/dddotcom.github.io-hexo.git</div><div class="line">$ git push origin master</div></pre></td></tr></table></figure>
 
-<p>In the _config.yml file, I set the following:</p>
-<figure class="highlight yml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="preprocessor">#URL</span></div><div class="line">url: http:<span class="comment">//dddotcom.github.io</span></div><div class="line"></div><div class="line"><span class="preprocessor">## Docs:</span></div><div class="line">deploy:</div><div class="line">  type: github</div><div class="line">  repo: https:<span class="comment">//github.com/dddotcom/dddotcom.github.io.git</span></div><div class="line">  branch: master</div></pre></td></tr></table></figure>
+<p>Configure your hexo website.<br>In the _config.yml file, set the following:</p>
+<figure class="highlight yml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line"><span class="comment">#URL</span></div><div class="line">url: http://dddotcom.github.io</div><div class="line"></div><div class="line"><span class="keyword">...</span></div><div class="line"></div><div class="line"><span class="comment">## Docs:</span></div><div class="line">deploy:</div><div class="line">  type: github</div><div class="line">  repo: https://github.com/dddotcom/dddotcom.github.io.git</div><div class="line">  branch: master</div></pre></td></tr></table></figure>
 
-<p>Then I ran the following commands in the project directory (dddotcom.github.io-hexo) to deploy the default hexo site to <a href="dddotcom.github.io">dddotcom.github.io</a></p>
+<p>Deploy your hexo site to your [username].github.io page<br>Run the following commands in the project directory (dddotcom.github.io-hexo) to deploy the default hexo site to <a href="dddotcom.github.io">dddotcom.github.io</a></p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">$ hexo generate</div><div class="line">$ hexo deploy</div></pre></td></tr></table></figure>
 
 
@@ -164,7 +170,7 @@
       <ul>
         
           <li>
-            <a href="/2014/12/26/how-i-started-my-hexo-website/">How to deploy hexo website and host on github</a>
+            <a href="/2014/12/26/how-i-started-my-hexo-website/">How to deploy a hexo website and host it on github</a>
           </li>
         
       </ul>
