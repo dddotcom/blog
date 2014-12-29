@@ -67,6 +67,82 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-enabling-disqus-comments" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2014/12/28/enabling-disqus-comments/" class="article-date">
+  <time datetime="2014-12-28T14:58:18.000Z" itemprop="datePublished">Dec 28 2014</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2014/12/28/enabling-disqus-comments/">Enabling Disqus Comments</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>Hexo uses Disqus for managing comments.</p>
+<p>There are two scenarios in which you might want to enable Disqus in your Hexo project.</p>
+<ol>
+<li><p>There is no “Comments” link at the bottom of each post. You would like to know if there is a way that you can enable comments on your site.</p>
+<ul>
+<li>This occurs because you have not configured Disqus on your site. This happens when you have not filled out the <code>disqus_shortname</code> field in the _config.yml</li>
+</ul>
+</li>
+<li><p>There is a “Comments” link appearing at the bottom of each post, however, when you click it you are prompted with the following message:<br></p><p style="border: 1px solid gray"> We were unable to load Disqus. If you are a moderator please see our <a href="https://help.disqus.com/customer/portal/articles/472007-i-m-receiving-the-message-%22we-were-unable-to-load-disqus-%22" target="_blank" rel="external">trouble shooting guide.</a> </p><p></p>
+<ul>
+<li>This occurs because Disqus is not correctly set up on your site.</li>
+</ul>
+</li>
+</ol>
+<h2 id="Register_for_a_Disqus_Account">Register for a Disqus Account</h2>
+<p>In order to setup Disqus on your Hexo site you must first create a Disqus account by registering at the following link: <a href="https://disqus.com/profile/signup/" target="_blank" rel="external">https://disqus.com/profile/signup/</a>.</p>
+<h2 id="Add_Disqus_to_Your_Site">Add Disqus to Your Site</h2>
+<p>After creating an account, login and visit your <a href="https://disqus.com/home/" target="_blank" rel="external">Home Feed</a>. Select the gear in the upper right corner and select the option “<a href="https://disqus.com/admin/create/" target="_blank" rel="external">Add Disqus To Site</a>“ which will bring you to the admin/create page.</p>
+<p>Once on the admin/create page, provide your site’s URL in the “Site name” box. Afterwards, you can provide your own unique Disqus URL, or Disqus may auto-generate one for you. In the case of my blog, the site name I used was : dddotcom.github.io.</p>
+<h2 id="Find_Your_Disqus_Shortname">Find Your Disqus Shortname</h2>
+<p>In order to configure your Hexo site to use Disqus, you need to provide your shortname in the _config.yml file. A shortname is the unique identifier assigned to a Disqus site.</p>
+<p>In order to find the shortname for your site, visit your <a href="https://disqus.com/home/" target="_blank" rel="external">Home Feed</a>. Select the gear in the upper right corner and select “Admin” from the drop-down menu. Click the menu button on the top left of the Admin page to view a dropdown of all your Disqus sites.</p>
+<p>Click on the site whose shortname you want. Your shortname can then be seen in the browser’s address bar as [shortname].disqus.com/admin</p>
+<h2 id="Configure_Your_Site">Configure Your Site</h2>
+<p>After finding your Disqus shortname, edit the _config.yml file. In the _config.yml, fill in the <code>disqus_shortname</code> parameter with the shortname for your registered site.</p>
+<figure class="highlight yml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"><span class="preprocessor"># Disqus</span></div><div class="line">disqus_shortname: your_shortname_goes_here</div></pre></td></tr></table></figure>
+
+<p>Afterwards you can re-deploy your site and the comment button at the bottom of each post should now work.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">$ hexo generate</div><div class="line">$ hexo deploy</div></pre></td></tr></table></figure>
+
+<h2 id="Notes">Notes</h2>
+<p>In the <code>\themes\layout\_partial</code> directory there is a file named <code>after-footer.ejs</code>. This file contains the code needed to use Disqus on your Hexo site.</p>
+<p>As seen in the line 1 of the after-footer.ejs code, Disqus is only enabled if the disqus_shortname field in the configuration file (_config.yml) is filled in. Otherwise, Disqus will not be used on your site.</p>
+<h4 id="after-footer-ejs">after-footer.ejs</h4>
+<figure class="highlight ejs"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line">&lt;% <span class="keyword">if</span> (config.disqus_shortname){ %&gt;</div><div class="line">  &lt;script&gt;</div><div class="line">  <span class="reserved">var</span> disqus_shortname = <span class="string">'&lt;%= config.disqus_shortname %&gt;'</span>;</div><div class="line">  &lt;% <span class="keyword">if</span> (page.permalink){ %&gt;</div><div class="line">    <span class="reserved">var</span> disqus_url = <span class="string">'&lt;%= page.permalink %&gt;'</span>;</div><div class="line">    &lt;% } %&gt;</div><div class="line">    (<span class="reserved">function</span>(){</div><div class="line">      <span class="reserved">var</span> dsq = <span class="built_in">document</span>.createElement(<span class="string">'script'</span>);</div><div class="line">      dsq.type = <span class="string">'text/javascript'</span>;</div><div class="line">      dsq.async = <span class="literal">true</span>;</div><div class="line">      dsq.src = <span class="string">'//'</span> + disqus_shortname + <span class="string">'.disqus.com/&lt;% if (page.comments) { %&gt;embed.js&lt;% } else { %&gt;count.js&lt;% } %&gt;'</span>;</div><div class="line">      (<span class="built_in">document</span>.getElementsByTagName(<span class="string">'head'</span>)[<span class="number">0</span>] || <span class="built_in">document</span>.getElementsByTagName(<span class="string">'body'</span>)[<span class="number">0</span>]).appendChild(dsq);</div><div class="line">      })();</div><div class="line">      &lt;/script&gt;</div><div class="line">      &lt;% } %&gt;</div><div class="line"></div><div class="line">      &lt;script src=<span class="string">"//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"</span>&gt;&lt;/script&gt;</div><div class="line"></div><div class="line">      &lt;% <span class="keyword">if</span> (theme.fancybox){ %&gt;</div><div class="line">        &lt;%- css(<span class="string">'fancybox/jquery.fancybox'</span>) %&gt;</div><div class="line">        &lt;%- js(<span class="string">'fancybox/jquery.fancybox.pack'</span>) %&gt;</div><div class="line">        &lt;% } %&gt;</div><div class="line"></div><div class="line">        &lt;%- js(<span class="string">'js/script'</span>) %&gt;</div></pre></td></tr></table></figure>
+
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://dddotcom.github.io/2014/12/28/enabling-disqus-comments/" data-id="mit5l1wb4waxilxd" class="article-share-link">Share</a>
+      
+        <a href="http://dddotcom.github.io/2014/12/28/enabling-disqus-comments/#disqus_thread" class="article-comment-link">Comments</a>
+      
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/disqus/">disqus</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/hexo/">hexo</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
     <article id="post-how-i-started-my-hexo-website" class="article article-type-post" itemscope itemprop="blogPost">
   <div class="article-meta">
     <a href="/2014/12/26/how-i-started-my-hexo-website/" class="article-date">
@@ -148,6 +224,8 @@
     <footer class="article-footer">
       <a data-url="http://dddotcom.github.io/2014/12/26/how-i-started-my-hexo-website/" data-id="sobiwcf30ybvzgep" class="article-share-link">Share</a>
       
+        <a href="http://dddotcom.github.io/2014/12/26/how-i-started-my-hexo-website/#disqus_thread" class="article-comment-link">Comments</a>
+      
       
   <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/github/">github</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/hexo/">hexo</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/nodejs/">nodejs</a></li></ul>
 
@@ -169,7 +247,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tags</h3>
     <div class="widget">
-      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/github/">github</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/hexo/">hexo</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nodejs/">nodejs</a><span class="tag-list-count">1</span></li></ul>
+      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/disqus/">disqus</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/github/">github</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/hexo/">hexo</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nodejs/">nodejs</a><span class="tag-list-count">1</span></li></ul>
     </div>
   </div>
 
@@ -178,7 +256,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tag Cloud</h3>
     <div class="widget tagcloud">
-      <a href="/tags/disqus/" style="font-size: 10.00px;">disqus</a><a href="/tags/github/" style="font-size: 20.00px;">github</a><a href="/tags/hexo/" style="font-size: 20.00px;">hexo</a><a href="/tags/hexo-website/" style="font-size: 10.00px;">hexo website</a><a href="/tags/node-js/" style="font-size: 10.00px;">node.js</a><a href="/tags/nodejs/" style="font-size: 20.00px;">nodejs</a>
+      <a href="/tags/disqus/" style="font-size: 15.00px;">disqus</a><a href="/tags/github/" style="font-size: 15.00px;">github</a><a href="/tags/hexo/" style="font-size: 20.00px;">hexo</a><a href="/tags/hexo-website/" style="font-size: 10.00px;">hexo website</a><a href="/tags/node-js/" style="font-size: 10.00px;">node.js</a><a href="/tags/nodejs/" style="font-size: 15.00px;">nodejs</a>
     </div>
   </div>
 
@@ -187,7 +265,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Archives</h3>
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/12/">December 2014</a><span class="archive-list-count">1</span></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/12/">December 2014</a><span class="archive-list-count">2</span></li></ul>
     </div>
   </div>
 
@@ -197,6 +275,10 @@
     <h3 class="widget-title">Recents</h3>
     <div class="widget">
       <ul>
+        
+          <li>
+            <a href="/2014/12/28/enabling-disqus-comments/">Enabling Disqus Comments</a>
+          </li>
         
           <li>
             <a href="/2014/12/26/how-i-started-my-hexo-website/">How to deploy a Hexo website and host it on Github</a>
@@ -228,6 +310,18 @@
   
 </nav>
     
+<script>
+  var disqus_shortname = 'dddotcomgithubio';
+  
+  (function(){
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/count.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
 
 <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
 
