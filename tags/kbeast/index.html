@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   
-  <title>Tag: nodejs | dd-dot-com</title>
+  <title>Tag: kbeast | dd-dot-com</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="description" content="Developer tools and tutorials">
 <meta property="og:type" content="website">
 <meta property="og:title" content="dd-dot-com">
-<meta property="og:url" content="http://dddotcom.github.io/tags/nodejs/">
+<meta property="og:url" content="http://dddotcom.github.io/tags/kbeast/">
 <meta property="og:site_name" content="dd-dot-com">
 <meta property="og:description" content="Developer tools and tutorials">
 <meta name="twitter:card" content="summary">
@@ -67,10 +67,10 @@
       <div class="outer">
         <section id="main">
   
-    <article id="post-how-i-started-my-hexo-website" class="article article-type-post" itemscope itemprop="blogPost">
+    <article id="post-kbeast-overview" class="article article-type-post" itemscope itemprop="blogPost">
   <div class="article-meta">
-    <a href="/2014/12/26/how-i-started-my-hexo-website/" class="article-date">
-  <time datetime="2014-12-26T17:22:57.000Z" itemprop="datePublished">Dec 26 2014</time>
+    <a href="/2015/01/02/kbeast-overview/" class="article-date">
+  <time datetime="2015-01-02T18:18:29.000Z" itemprop="datePublished">Jan 2 2015</time>
 </a>
     
   </div>
@@ -81,7 +81,7 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2014/12/26/how-i-started-my-hexo-website/">How to deploy a Hexo website and host it on Github</a>
+      <a class="article-title" href="/2015/01/02/kbeast-overview/">Kbeast Rootkit Overview</a>
     </h1>
   
 
@@ -89,69 +89,53 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>In order to deploy my Hexo website I used two Github repositories:</p>
-<ol>
-<li><p><strong>dddotcom.github.io</strong> / [username].github.io</p>
+        <p>KBeast is an open source Loadable Kernel Module (LKM) Linux rootkit that was developed in 2012 by IPSECS. Like other kernel mode rootkits, Kbeast hides the kernel module as well as the files, directories, processes, and connections that it creates. It also has the ability to run a password protected backdoor and keylogger on the infected machine.</p>
+<p>Kbeast currently works on the following Linux kernel versions:</p>
 <ul>
-<li>this repo will be used to host your deployed Hexo website</li>
-<li>as long as it has an index.html file in the base of the repo directory, Github will display it on your user page</li>
+<li>2.6.16</li>
+<li>2.6.18</li>
+<li>2.8.32</li>
+<li>2.6.35</li>
 </ul>
-</li>
-<li><p><strong>dddotcom.github.io-hexo</strong> / [username].github.io-hexo</p>
+<h2 id="Where_to_get_it">Where to get it</h2>
+<p>You can install KBeast by downloading the <a href="http://core.ipsecs.com/rootkit/kernel-rootkit/kbeast-v1/" target="_blank" rel="external">ipsecs-kbeast-v1.tar.gz</a> file onto a Linux machine running any of the kernel versions mentioned above.</p>
+<p>The contents of the untarred file are as follows:</p>
 <ul>
-<li><p>this repo will be used to version control the important files of your website so that they can be recovered if they are ever lost</p>
-<p>the following files are of particular importance:</p>
+<li>LICENSE</li>
+<li>Makefile</li>
+<li>bd-ipsecs-kbeast-v1.c</li>
+<li>config.h</li>
+<li>ipsecs-kbeast-v1.c</li>
+<li>ipsecs-kbeast-v1.cc1</li>
+<li>setup</li>
+</ul>
+<h4 id="Files_to_note">Files to note</h4>
+<h5 id="config-h"><code>config.h</code></h5>
+<p>A configuration file that can be edited before compiling and installing Kbeast. This file contains several important settings such as:</p>
 <ul>
-<li>scaffolds/*.md</li>
-<li>.gitignore</li>
-<li>_config.yml</li>
-<li>package.json</li>
-</ul>
+<li><p>the <strong>port number</strong> used for the backdoor</p>
+</li>
+<li><p>the <strong>password</strong> for the backdoor</p>
+</li>
+<li><p>the <strong>prefix</strong> for hidden files<br>  Any files whose name contains the specified prefix will be hidden from system calls such as the <code>ls</code> command. By default, this prefix is <code>“_h4x_”</code>.</p>
+</li>
+<li><p>the <strong>directory</strong> where the rootkit will be saved<br>  By default this is the <code>“/usr/_h4x_”</code> directory. It will also be hidden from system calls since the directory name contains the hidden prefix.</p>
 </li>
 </ul>
-</li>
-</ol>
-<p>Now let’s begin creating a Hexo project.  </p>
-<h2 id="Install_Hexo">Install Hexo</h2>
-<p>I used the full version <a href="http://bliker.github.io/cmder/" target="_blank" rel="external">cmder</a>, a Windows console emulator, which allowed me to have all the Unix commands in my PATH so I could run commands like <code>git init</code> and <code>npm install</code> instantly.</p>
-<p>Hexo runs on NodeJS and thus you need to install nodejs.To install it, go to <a href="http://nodejs.org/download/" target="_blank" rel="external">http://nodejs.org/download/</a>.</p>
-<p>For Windows, I used the Windows Installer (.msi). Make sure to pick the appropriate 32-bit or 64-bit option for your system.</p>
-<p>Once NodeJS is installed, use the <code>npm install -g hexo</code> command to install hexo.</p>
-<p>You can see that Hexo was successfully installed by running <code>hexo -v</code> to get the currently installed version.</p>
-<h2 id="Create_a_Hexo_Project">Create a Hexo Project</h2>
-<p>Create a Hexo project directory with the name: <strong>[username].github.io-hexo</strong><br>In my case I used <strong>dddotcom.github.io-hexo</strong></p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">$ hexo init dddotcom.github.io-hexo</div><div class="line">$ <span class="built_in">cd</span> dddotcom.github.io-hexo</div><div class="line">$ npm install</div></pre></td></tr></table></figure>
-
-<h2 id="Version_Your_Project">Version Your Project</h2>
-<p>Initialize a git repository in the Hexo project’s directory.</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ git init</div></pre></td></tr></table></figure>
-
-<p>Commit the previously mentioned important files</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">$ git add _config.yml package.json .gitignore scaffolds\*.md</div><div class="line">$ git commit -m <span class="string">"initial commit"</span></div><div class="line">$ git remote add origin https://github.com/dddotcom/dddotcom.github.io-hexo.git</div><div class="line">$ git push origin master</div></pre></td></tr></table></figure>
-
-<p>Whenever any changes are made, just run the above commands again to push the latest version to the master branch in your repository.</p>
-<h2 id="Configure_Your_Hexo_Website">Configure Your Hexo Website</h2>
-<p>In the _config.yml file, set the following:</p>
-<figure class="highlight yml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line"><span class="comment">#URL</span></div><div class="line">url: http://dddotcom.github.io</div><div class="line"></div><div class="line"><span class="keyword">...</span></div><div class="line"></div><div class="line"><span class="comment">## Docs:</span></div><div class="line">deploy:</div><div class="line">  type: github</div><div class="line">  repo: https://github.com/dddotcom/dddotcom.github.io.git</div><div class="line">  branch: master</div></pre></td></tr></table></figure>
-
-<h2 id="Deploy_Your_Website">Deploy Your Website</h2>
-<p>In order to see a preview of your website, you can run the <code>Hexo server</code> command in the project directory ([username].github.io-hexo). This command will serve up your site locally on port 4000.</p>
-<p>Visit the page at <a href="http://localhost:4000" target="_blank" rel="external">http://localhost:4000</a> to see how your site will look once it is deployed.</p>
-<p>You can then deploy your Hexo site to your [username].github.io page</p>
-<p>Run the following commands in the project directory ([username].github.io-hexo) to deploy the Hexo site to [username].github.io</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">$ hexo generate</div><div class="line">$ hexo deploy</div></pre></td></tr></table></figure>
-
-<p>You can now visit your Github user page at [username].github.io to view your new site!</p>
+<h5 id="setup"><code>setup</code></h5>
+<p>An installer script that automatically loads Kbeast into the machine’s kernel. The script sets up the hiding functionality and automatically loads the kernel module and backdoor.</p>
+<h3 id="Resources">Resources</h3>
+<p><a href="http://core.ipsecs.com/rootkit/kernel-rootkit/kbeast-v1/" target="_blank" rel="external">Kbeast Source Code</a><br><a href="http://www.cs.rutgers.edu/~iftode/paladin08.pdf" target="_blank" rel="external">Automated Containment of Rootkit Attacks</a><br><a href="http://progdave.wikidot.com/how-to-build-kbeast-linux-rootkit-for-centos-6-4-x86-64" target="_blank" rel="external">How To Build Kbeast Linux Rootkit For Centos 64 X86 64</a></p>
 
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://dddotcom.github.io/2014/12/26/how-i-started-my-hexo-website/" data-id="sobiwcf30ybvzgep" class="article-share-link">Share</a>
+      <a data-url="http://dddotcom.github.io/2015/01/02/kbeast-overview/" data-id="05hjjyiisw13dszw" class="article-share-link">Share</a>
       
-        <a href="http://dddotcom.github.io/2014/12/26/how-i-started-my-hexo-website/#disqus_thread" class="article-comment-link">Comments</a>
+        <a href="http://dddotcom.github.io/2015/01/02/kbeast-overview/#disqus_thread" class="article-comment-link">Comments</a>
       
       
-  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/github/">github</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/hexo/">hexo</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/nodejs/">nodejs</a></li></ul>
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ipsecs/">ipsecs</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kbeast/">kbeast</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kernel-mode/">kernel mode</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/rootkit/">rootkit</a></li></ul>
 
     </footer>
   </div>
