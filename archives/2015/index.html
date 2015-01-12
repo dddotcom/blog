@@ -82,6 +82,379 @@ ga('send', 'pageview');
       <div class="outer">
         <section id="main">
   
+    <article id="post-Kbeast-Source-Code-Analysis" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2015/01/10/Kbeast-Source-Code-Analysis/" class="article-date">
+  <time datetime="2015-01-10T18:27:29.000Z" itemprop="datePublished">Jan 10 2015</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2015/01/10/Kbeast-Source-Code-Analysis/">Kbeast Part 2: Source Code Analysis</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>A rootkit’s primary function is to establish a remote interface with a machine that allows for surveillance and concealment. Thus, in order to analyze KBeast’s functionality as a rootkit, we must look at the concealment and stealth techniques it uses to make itself undetectable on the compromised machine.</p>
+<p>KBeast uses some common kernel mode rootkit techniques to hide its kernel module and other suspicious processes. An in-depth look at how KBeast functions and its source code will help us see how these techniques work.</p>
+<h2 id="Hiding_the_Kernel_Model">Hiding the Kernel Model</h2>
+<p>The two Linux file systems that provide interfaces to kernel data structures are the <strong>proc</strong> and <strong>sysfs</strong> file systems.</p>
+<h4 id="Proc_File_System">Proc File System</h4>
+<p>The proc file system lists all the currently loaded kernel modules in the  <code>/proc/modules</code> file.<br>Running the <code>cat /proc/modules</code> command produces a list of kernel modules in the following 6 column format:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">(1)          (2)   (3)    (4)      (5)           (6)</div><div class="line">mptscsih    40150   1   mptspi,   Live    0x0000000000000000</div></pre></td></tr></table></figure>
+
+<ul>
+<li>Column 1: module name</li>
+<li>Column 2: size of module in bytes</li>
+<li>Column 3: number of loaded instances</li>
+<li>Column 4: list of modules the module is dependent on to function</li>
+<li>Column 5: load state of module (states are Live, Loading, or Unloading)</li>
+<li>Column 6: kernel memory offset for the module</li>
+</ul>
+<p>Running the <code>lsmod</code> command also prints the contents of the  <code>/proc/modules</code> file . Since <code>lsmod</code> grabs its data from <code>/proc/modules</code>, any changes to the file would also be reflected in the <code>lsmod</code> output.</p>
+<h4 id="Sysfs_File_System">Sysfs File System</h4>
+<p>This file system creates a directory per active kernel module which contains information on the module such as the its name, sections, and parameters.</p>
+<p>Using both the <strong>sysfs</strong> and <strong>proc</strong> file systems, a security tool can compare the <code>proc/modules</code> list with the directories in the <code>sys/module</code> directory. Any modules found in sysfs but not in proc are noted as hidden kernel modules.<br>Thus, when trying to hide the kernel, a rootkit should take precautions to hide from both the <strong>sysfs</strong> and <strong>proc</strong> filesystems.</p>
+<h4 id="Kbeast_Hiding_Technique">Kbeast Hiding Technique</h4>
+<p>Rootkits must hide themselves from the list of loaded modules because system administrators and security tools often use the above methods to detect a malicious kernel module rootkit. If an administrator was to notice that a suspicious module was present on the module list, he would most likely take action to remove it, thus disabling the rootkit.</p>
+<p>In order to do this, many LKM rootkits delete themselves from the module list in the kernel memory. Being deleted from the list allows the rootkit to remain active in memory while not being seen by the <code>lsmod</code> or <code>cat /proc/modules</code> commands.</p>
+<p>The process to do this is very simple and requires only one line of code. KBeast uses this one line technique as shown in line 677.</p>
+<p><img src="../images/fig_3.1.png" alt=""><br>KBeast uses <code>__this_module</code> to obtain a reference to the LKM. It then uses the macro <code>list_del_init</code> to delete the module from the list and reinitialize it.</p>
+<p>However, as mentioned above, hiding from sysfs is also important and fairly easy to do with the following line of code:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">kobject_del(__this_module.holders_dir-&gt;parent);</div></pre></td></tr></table></figure>
+
+<p>As explained in <a href="http://news.asis.io/sites/default/files/The%20Art%20of%20Memory%20Forensics.pdf" target="_blank" rel="external">The Art of Memory Forensics</a>, “This code first finds a reference to sysfs (holders_dir), and then removes itself from the parent’s list of children”.</p>
+<h2 id="Hooking_the_System_Call_Table">Hooking the System Call Table</h2>
+<p>KBeast manipulates the system call table using the hooking technique. Hooking is the process of replacing an existing, legitimate call table address with the address of a routine of our own design. By hijacking certain entries in the system call table, rootkits can prevent certain processes from being killed or prevent important files from being seen, deleted, or tampered with.</p>
+<p>KBeast hooks the following system calls</p>
+<ul>
+<li>unlink  </li>
+<li>rmdir</li>
+<li>unlinkat</li>
+<li>rename</li>
+<li>open</li>
+<li>kill</li>
+<li>read</li>
+<li>write</li>
+<li>getdents</li>
+<li>delete_module<br>and replaces the system call handler’s address with the address of its own handler.</li>
+</ul>
+<p>Hooking these system calls ensures that files starting with the defined prefix remain hidden and unaltered.</p>
+<h4 id="Kbeast_Hooking">Kbeast Hooking</h4>
+<p>Looking more in depth at the <code>h4x_read</code> function in KBeast’s source code shows how hooking is done.</p>
+<p><img src="../images/fig_3.2.png" alt=""></p>
+<p>The <code>h4x_read</code> function hooks the <strong>read</strong> system call by faking the output of the <code>ps</code>, <code>pstree</code>, <code>top</code>, and <code>lsof</code> commands.</p>
+<p>In <strong>line 239</strong> the function uses the Linux Kernel API’s <code>copy_from_user function</code> to copy 255 bytes of the data from the user space into the <code>kbuf</code> buffer.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="number">239</span>   copy_from_user(kbuf,buf,<span class="number">255</span>);</div></pre></td></tr></table></figure>
+
+<p>In this case the data from the user space would be a user’s input to the terminal such as <code>ps –aux | grep kbeast</code> if he was looking for the KBeast rootkit in the running kernel processes of his system.</p>
+<p>In <strong>lines 240 – 241</strong>, the function checks the <code>current</code> variable. This variable is a pointer to the process that has issued the system call. The <code>current-&gt;comm</code> field is the command name of the current process. Essentially the function checks to see whether the user has issued any of the commands <code>ps</code>, <code>pstree</code>, <code>top</code>, or <code>lsof</code>, and if so, it then checks if the strings <code>&quot;_h4x_&quot;</code>or <code>&quot;kbeast&quot;</code> are also in the user input. If so, the function throws the ENOENT or “No such file or directory” error in the attempt to hide KBeast’s running processes from the user.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="number">240</span> <span class="keyword">if</span> ((<span class="built_in">strstr</span>(current-&gt;comm,<span class="string">"ps"</span>))||(<span class="built_in">strstr</span>(current-&gt;comm,<span class="string">"pstree"</span>))||</div><div class="line"><span class="number">241</span>   (<span class="built_in">strstr</span>(current-&gt;comm,<span class="string">"top"</span>))||(<span class="built_in">strstr</span>(current-&gt;comm,<span class="string">"lsof"</span>))){</div><div class="line"><span class="number">242</span>     <span class="keyword">if</span>(<span class="built_in">strstr</span>(kbuf,_H4X0R_)||<span class="built_in">strstr</span>(kbuf,KBEAST))</div><div class="line"><span class="number">243</span>     {</div><div class="line"><span class="number">244</span>       kfree(kbuf);</div><div class="line"><span class="number">245</span>       <span class="keyword">return</span> -ENOENT;</div><div class="line"><span class="number">246</span>     }</div><div class="line"><span class="number">247</span>   }</div></pre></td></tr></table></figure>
+
+<p>If <code>&quot;_h4x_&quot;</code> or <code>&quot;kbeast&quot;</code> are not in the user input string, the function simply executes with the correct read system call function as seen in <strong>line 249</strong>.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="number">249</span>   r=o_read(fd,buf,count);</div></pre></td></tr></table></figure>
+
+<p>While hooking is a common technique used by many rootkits, it is very easy to detect. Usually in a call table, there is a certain range of addresses that the table should contain. Thus, all an investigator needs to do is check that the call table does not contain any addresses outside the allowed address range. Any addresses outside of this range, that may point to the rootkit’s own handlers, would be immediately deemed as hooked.</p>
+<h2 id="Privilege_Escalation">Privilege Escalation</h2>
+<p>In early versions of 2.6 kernels, the user ID and group ID of a process could simply be set to 0 in order to elevate the process to have root privileges. However, later versions of the 2.6 kernel came with a cred structure which holds all the information related to the privileges of a process.</p>
+<h4 id="Cred_Structure">Cred Structure</h4>
+<p>The older 2.6 kernel has the <code>prepare_creds</code> and <code>commit_creds</code> functions that allow the caller to allocate and store new process credentials. A rootkit can leverage these functions to create another cred structure with root privileges, thus giving the attacker’s process full control of the system.</p>
+<p>A second way to escalate privileges without creating a new structure is to borrow another process’ cred structure. By pointing a malicious process’ cred structure to a valid one with root privileges, the malicious process gains the same privileges as the valid one. This is often done by targeting a process that has root privileges and does not exit. A common process to target is <code>init</code> which runs as root and exits only when the machine is rebooting or powering off.</p>
+<p>While easier than the previous method mentioned, this method is easily detectable. Usually, every process gets a unique cred structure which is never shared or borrowed by another process. Thus if an investigator looks at any processes that share cred structures they can investigate the suspicious process and uncover the rootkit.</p>
+<h4 id="Kbeast_Privilege_Escalation">Kbeast Privilege Escalation</h4>
+<p>KBeast uses the first method and creates its own cred structure which escalates to a root bash shell whenever <code>kill</code> is called with a defined signal number (“<em>MAGIC_SIG</em>“) and process id (“<em>MAGIC_PID</em>“) as shown in the <code>h4x_kill</code> function.</p>
+<p><img src="../images/fig_3.3.png" alt=""></p>
+<p>In <strong>line 647</strong>, the function gets the task structure of the process with the given process id.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="number">647</span>   cur = pid_task(find_pid_ns(pid, &init_pid_ns), PIDTYPE_PID);</div></pre></td></tr></table></figure>
+
+<p>In <strong>line 649</strong>, if the process contains the string of the given prefix, <code>&quot;_h4x_&quot;</code>, or <code>&quot;kbeast&quot;</code> the function returns a “permission denied” error thus preventing the user from killing the rootkit or any of its related processes.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="number">649</span>     <span class="keyword">if</span>(<span class="built_in">strstr</span>(cur-&gt;comm,_H4X0R_)||<span class="built_in">strstr</span>(cur-&gt;comm,KBEAST)){</div><div class="line"><span class="number">650</span>   <span class="keyword">return</span> -EACCES;</div><div class="line"><span class="number">651</span> }</div></pre></td></tr></table></figure>
+
+<p><strong>Line 653</strong> starts the function’s privilege escalation capability. If the inputted process id and signal both match the predefined <code>&quot;_MAGIC_SIG_&quot;</code> and <code>&quot;_MAGIC_PID_&quot;</code>, the function starts the privilege escalation process to root. It does so by creating a new cred structure to allocate and store some new process credentials. Setting all the fields of the cred structure to 0 means that the process associated with this cred will have root privileges.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="number">655</span> <span class="keyword">struct</span> cred *<span class="keyword">new</span>=prepare_creds();<span class="keyword">if</span>(<span class="keyword">new</span>){<span class="keyword">new</span>-&gt;uid=<span class="number">0</span>;<span class="keyword">new</span>-&gt;euid=<span class="number">0</span>;<span class="keyword">new</span>-&gt;gid=<span class="number">0</span>;<span class="keyword">new</span>-&gt;egid=<span class="number">0</span>;commit_creds(<span class="keyword">new</span>);<span class="keyword">return</span> <span class="number">0</span>;}</div></pre></td></tr></table></figure>
+
+<h3 id="Resources">Resources</h3>
+<p><a href="http://www.centos.org/docs/5/html/Deployment_Guide-en-US/s1-proc-topfiles.html" target="_blank" rel="external">Info on /proc/modules</a><br><a href="http://www.jblearning.com/catalog/9781449626365/" target="_blank" rel="external">The Rootkit Arsenal</a><br><a href="http://news.asis.io/sites/default/files/The%20Art%20of%20Memory%20Forensics.pdf" target="_blank" rel="external">The Art of Memory Forensics</a><br><a href="http://volatility-labs.blogspot.com/2012/09/movp-15-kbeast-rootkit-detecting-hidden.html" target="_blank" rel="external">Volatility Labs: Kbeast Rootkit</a><br><a href="http://www.xml.com/ldd/chapter/book/ch02.html" target="_blank" rel="external">Linux Device Drivers</a><br><a href="http://linux.die.net/man/3/errno" target="_blank" rel="external">errno - Linux man page</a><br><a href="http://volatility-labs.blogspot.com/2012/09/movp-14-average-coder-rootkit-bash.html" target="_blank" rel="external">Volatility Labs: Average Coder Rootkit</a><br><a href="http://r00tkit.me/maK_it-Linux-Rootkit.pdf" target="_blank" rel="external">maK_it: Linux Rootkit</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://dddotcom.github.io/2015/01/10/Kbeast-Source-Code-Analysis/" data-id="7l4d5pjckm9u9fe7" class="article-share-link">Share</a>
+      
+        <a href="http://dddotcom.github.io/2015/01/10/Kbeast-Source-Code-Analysis/#disqus_thread" class="article-comment-link">Comments</a>
+      
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ipsecs/">ipsecs</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kbeast/">kbeast</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux-kernel/">linux kernel</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/rootkit/">rootkit</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+    <article id="post-threat-level-midnight-part2" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2015/01/07/threat-level-midnight-part2/" class="article-date">
+  <time datetime="2015-01-07T18:48:06.000Z" itemprop="datePublished">Jan 7 2015</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>title: Threat Level Midnight Part 2: Live Streaming</p>
+<h2 id="tags:">tags:</h2>
+<p>I started a Rails test app, called <em>Threat Level Midnight</em>, which would implement the following features:</p>
+<ol>
+<li>live video streaming</li>
+<li>video playback</li>
+<li>user management</li>
+</ol>
+<p>In this post, I will further explore live video streaming.</p>
+<h2 id="Live_video_streaming">Live video streaming</h2>
+<h4 id="RaspiMJPEG">RaspiMJPEG</h4>
+<p>I stumbled upon <a href="http://www.recantha.co.uk/blog/?p=11176" target="_blank" rel="external">this</a> blog post by Michael Horne who said that Silvan Melchoir’s RaspiMJPEG method was the best for streaming video from the Raspi.</p>
+<p>The instructions to download <strong>RaspiMJPEG</strong> can be found <a href="http://www.raspberrypi.org/forums/viewtopic.php?f=43&amp;t=61771" target="_blank" rel="external">here</a><br>The source code for <strong>RaspiMJPEG</strong> can be found <a href="https://github.com/silvanmelchior/userland/blob/master/host_applications/linux/apps/raspicam/RaspiMJPEG.c" target="_blank" rel="external">here</a></p>
+<p>Recently, Melchoir added a web interface to his RaspiMJPEG application which allows users to control the Raspi Cam from any browser. Some features that I might be interested in specifically are:</p>
+<ul>
+<li>control camera settings (brightness, contrast, etc) live</li>
+<li>record videos and save them</li>
+<li>trigger video records by motion detection</li>
+<li>show annotations (timestamp) on live-preview and recorded videos</li>
+</ul>
+<p>The instructions for the <strong>web interface</strong> can be found <a href="http://www.raspberrypi.org/forums/viewtopic.php?f=43&amp;t=63276&amp;p=468491#p468491" target="_blank" rel="external">here</a><br>The source code for the <strong>web interface</strong> can be found <a href="https://github.com/silvanmelchior/RPi_Cam_Web_Interface" target="_blank" rel="external">here</a></p>
+<h5 id="RaspiMJPEG_Overview">RaspiMJPEG Overview</h5>
+<p>This application is comparable to <code>Raspivid</code> as both applications save video recordings in h264 format. While Raspivid shows the preview on a screen, RaspiMJPEG streams the preview as MJPEG into a file.</p>
+<p>It can be used as an MJPEG-Streamer with video capture by running the following command:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ raspimjpeg -<span class="keyword">w</span> <span class="number">320</span> -<span class="keyword">h</span> <span class="number">240</span> -<span class="keyword">d</span> <span class="number">5</span> -of /path/<span class="keyword">to</span>/image.jpg -<span class="keyword">cf</span> /path/<span class="keyword">to</span>/pipe -vf /path/<span class="keyword">to</span>/video.h264</div></pre></td></tr></table></figure>
+
+<h5 id="Run_the_web_interface">Run the web interface</h5>
+<p>Dependencies:</p>
+<ul>
+<li>Raspbian OS installed</li>
+<li>Camera attached and enabled</li>
+</ul>
+<p>Start by updating the Raspi</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">$ sudo apt-<span class="built_in">get</span> <span class="keyword">update</span></div><div class="line">$ sudo apt-<span class="built_in">get</span> dist-upgrade</div><div class="line">$ sudo rpi-<span class="keyword">update</span></div></pre></td></tr></table></figure>
+
+<p>Clone Melchoir’s github code and run the installer script</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">$ git clone http<span class="variable">s:</span>//github.<span class="keyword">com</span>/silvanmelchior/RPi_Cam_Web_Interface.git</div><div class="line">$ <span class="keyword">cd</span> RPi_Cam_Web_Interface</div><div class="line">$ chmod <span class="keyword">u</span>+<span class="keyword">x</span> RPi_Cam_Web_Interface_Installer.<span class="keyword">sh</span></div></pre></td></tr></table></figure>
+
+<p>Run the installer</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ ./RPi_Cam_Web_Interface_Installer.<span class="keyword">sh</span> install</div></pre></td></tr></table></figure>
+
+<p>When the setup finishes, restart the Raspi. The video stream will start on startup, so just navigate to the Raspi’s IP address as the URL to view the stream.</p>
+<h4 id="Gstreamer">Gstreamer</h4>
+<p><a href="http://www.recantha.co.uk/blog/?p=10646" target="_blank" rel="external">This</a> blog post highlights another easy way to stream live video from the Raspi camera to a Windows PC. The <a href="https://www.youtube.com/watch?v=lNvYanDLHZA" target="_blank" rel="external">video tutorial</a> by Brynlea Gibson is easy to follow and the end results look promising.</p>
+<p>The description in her Youtube video claims that using this method, she was able to stream HD video with 0.2 seconds latency over a local area network. The following instructions are derived from Brynlea’s video tutorial.</p>
+<h5 id="Setup">Setup</h5>
+<p>To install gstreamer on the raspi run the following commands:<br>First, add the correct repository to the bottom of <code>sources.list</code></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">$ <span class="built_in">sudo</span> nano /etc/apt/sources.list</div><div class="line"></div><div class="line"><span class="comment"># Add the following line to the bottom of `sources.list`</span></div><div class="line">deb http://vontaene.de/raspbian-updates/ . main</div></pre></td></tr></table></figure>
+
+<p>Now update the raspberry pi and install gstreamer</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">$ <span class="built_in">sudo</span> apt-get update</div><div class="line">$ <span class="built_in">sudo</span> apt-get install gstreamer1.<span class="number">0</span> <span class="comment"># Install gstreamer</span></div></pre></td></tr></table></figure>
+
+<p>Next install the lastest gstreamer on your Windows PC by downloading it from the following <a href="http://gstreamer.freedesktop.org" target="_blank" rel="external">link</a>.</p>
+<p>Create a bash script on the Raspi that will send the video stream.<br>Paste the following code into your <code>[filename].sh</code> script</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="shebang">#!/bin/bash</span></div><div class="line">clear</div><div class="line">raspivid -n -t <span class="number">0</span> -rot <span class="number">270</span> -w <span class="number">960</span> -h <span class="number">720</span> -fps <span class="number">30</span> -b <span class="number">6000000</span> -o - | gst-launch-<span class="number">1.0</span> <span class="operator">-e</span> -vvvv fdsrc ! h264parse ! rtph264pay pt=<span class="number">96</span> config-interval=<span class="number">5</span> ! udpsink host=[Windows PC IP] port=<span class="number">5000</span></div></pre></td></tr></table></figure>
+
+<p>Then make the script executable by running the following</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ <span class="built_in">sudo</span> chmod a+x [filename].sh</div></pre></td></tr></table></figure>
+
+<p>Create a batch file on the Windows PC that will enable you to receive the live stream. Put the following contents into your <code>[filename].bat</code> file</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">@echo off</div><div class="line">cd C:\gstreamer\<span class="number">1.0</span>\x86_64\bin</div><div class="line">gst-launch-<span class="number">1.0</span> -e -v udpsrc <span class="variable">port=</span><span class="number">5000</span> ! application/x-rtp, <span class="variable">payload=</span><span class="number">96</span> ! rtpjitterbuffer ! rtph264depay ! avdec_h264 ! fpsdisplaysink <span class="variable">sync=</span><span class="constant">false</span> <span class="variable">text-overlay=</span><span class="constant">false</span></div></pre></td></tr></table></figure>
+
+<h5 id="View_stream">View stream</h5>
+<p>Run the bash script on the Raspi</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">./[filename].sh</div></pre></td></tr></table></figure>
+
+<p>On the Windows PC, double click the batch file to view the incoming video stream.</p>
+<h4 id="MJPG-streamer">MJPG-streamer</h4>
+<p>Miguel Grinberg’s <a href="http://blog.miguelgrinberg.com/post/stream-video-from-the-raspberry-pi-camera-to-web-browsers-even-on-ios-and-android" target="_blank" rel="external">blog post</a> had a good introduction on Motion JPEG (MJPEG), which is and older streaming protocol used by IP webcams. It simply streams individual JPEG pictures one after another to create the illusion of a video stream.</p>
+<p>Miguel’s post goes through all of the instructions to install and run the MJPG-streamer. He uses the <code>raspistill</code> command to setup a constant stream of JPEG images.</p>
+<p>The MJPEG-streamer is a streaming server that users can connect to to watch the live video stream. The stream is hosted at <code>http://[Pi&#39;s IP]:8080</code></p>
+<p>However, Miguel goes on to explain the downside of MJPEG. He says that MJPEG streams are not as efficient as h264 streams since they are lower quality and require more space since images are sent as JPEG pictures. If this is not a concern, the MJPG-streamer would be a viable solution to my video streaming feature.</p>
+<p>Unfortunately, space is an important factor to keep in mind for my application. I want to allow users will be allowed to store up to 72 hours of video. Thus to create a cost effective application with free video hosting, it is imperative that the video clips I store are as small as possible.</p>
+<h3 id="VLC"><a href="http://raspi.tv/2013/how-to-stream-video-from-your-raspicam-to-your-nexus-7-tablet-using-vlc" target="_blank" rel="external">VLC</a></h3>
+<p>pros</p>
+<ul>
+<li>h264 encoded clips</li>
+<li>view on any remote device that has VLC installed</li>
+</ul>
+<p>Dependencies:</p>
+<ul>
+<li>both devices must have VLC installed</li>
+</ul>
+<p>Install VLC on the Raspi</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">$ sudo apt-<span class="built_in">get</span> <span class="keyword">update</span></div><div class="line">$ sudo apt-<span class="built_in">get</span> install vlc</div></pre></td></tr></table></figure>
+
+<p>Run the following command on the Raspi</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="variable">$ </span>raspivid -o - -t <span class="number">99999</span> -w <span class="number">640</span> -h <span class="number">360</span> -fps <span class="number">25</span>|cvlc <span class="symbol">stream:</span>/<span class="regexp">//dev</span><span class="regexp">/stdin --sout '#standard{access=http,mux=ts,dst=:[port]}' :demux=h264</span></div></pre></td></tr></table></figure>
+
+<p>The <code>-t 99999</code> parameter is the time in ms that the stream will run for, in this case it is 99.9 seconds. If this parameter is changed to 0, the stream will run forever. If you want to stop the stream you can kill it with <code>CTRL+C</code>.</p>
+<p>To view the stream on a remote Windows PC, open up VLC.<br>Click on Media -&gt; Open Network Stream…<br>Then enter the URL of the Raspi’s video stream. This will be <code>http://[Raspi IP]:[port]</code>. Press <code>play</code> to view the stream.</p>
+<p>Now you can play with the <code>-w</code>, <code>-h</code>, and <code>-fps</code> parameters to scope out the maximum quality and frame rate that your PC and network can handle.</p>
+<p><strong>Note: My PC is currently running <em>VLC media player 2.0.6 Twoflower</em> </strong></p>
+<h3 id="nc"><a href="http://www.recantha.co.uk/blog/?p=4128" target="_blank" rel="external">nc</a></h3>
+<h3 id="Bambuser"><a href="http://www.recantha.co.uk/blog/?p=4052" target="_blank" rel="external">Bambuser</a></h3>
+<p>cons</p>
+<ul>
+<li>third party hosted</li>
+</ul>
+<h2 id="Streaming_video_with_VLC">Streaming video with VLC</h2>
+<p>Make sure that your VLC is up to date.<br>Go to Help -&gt; Check for Updates and install the latest recommended version.</p>
+<p>The VLC version that I am currently using is 2.1.5 Rincewind</p>
+<p>Paste the following code in <code>/app/views/devise/new.html.erb</code></p>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="tag">&lt;<span class="title">embed</span> <span class="attribute">type</span>=<span class="value">"application/x-vlc-plugin"</span></span></div><div class="line"><span class="attribute">pluginspage</span>=<span class="value">"http://www.videolan.org"</span><span class="value">version="VideoLAN.VLCPlugin.2"</span>  <span class="attribute">width</span>=<span class="value">"100%"</span></div><div class="line"><span class="attribute">height</span>=<span class="value">"100%"</span> <span class="attribute">id</span>=<span class="value">"vlc"</span> <span class="attribute">loop</span>=<span class="value">"yes"</span><span class="value">autoplay="yes"</span> <span class="attribute">target</span>=<span class="value">"http://video-hosting-IP:8080/"</span>&gt;<span class="tag">&lt;/<span class="title">embed</span>&gt;</span></div></pre></td></tr></table></figure>
+
+<p>To stream the video from VLC, open VLC go to media -&gt; stream<br>Select the file thaty ou want to stream and hit “stream”<br>Then hit “next”<br>For destination setup choose “HTTP” and press “Add” then click “Next”<br>Hit “Next” again<br>Hit “Stream”</p>
+<p>Then open the browser for the Rails application at localhost:3000</p>
+<p>Allow the VLC plugin to run on the page and you should see the video stream.</p>
+<p><a href="http://stackoverflow.com/questions/14375767/embedding-vlc-plugin-on-html-page" target="_blank" rel="external">http://stackoverflow.com/questions/14375767/embedding-vlc-plugin-on-html-page</a><br><a href="https://wiki.videolan.org/Documentation:WebPlugin/" target="_blank" rel="external">https://wiki.videolan.org/Documentation:WebPlugin/</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://dddotcom.github.io/2015/01/07/threat-level-midnight-part2/" data-id="a0nt54oa7ye499h5" class="article-share-link">Share</a>
+      
+        <a href="http://dddotcom.github.io/2015/01/07/threat-level-midnight-part2/#disqus_thread" class="article-comment-link">Comments</a>
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+    <article id="post-threat-level-midnight-part1" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2015/01/07/threat-level-midnight-part1/" class="article-date">
+  <time datetime="2015-01-07T18:03:10.000Z" itemprop="datePublished">Jan 7 2015</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>title: Threat Level Midnight Part 1: Devise</p>
+<h2 id="tags:">tags:</h2>
+<p>1/6/2015<br>I started to setup a new Rails test app, called <em>Threat Level Midnight</em>, which would implement the following features:</p>
+<ol>
+<li>live video streaming<ul>
+<li>h264 encoded clips</li>
+</ul>
+<ul>
+<li>shot with the Raspi Pi NoIR Camera</li>
+</ul>
+</li>
+<li>video playback<ul>
+<li>h264 encoded clips</li>
+</ul>
+</li>
+<li>user management<ul>
+<li>user accounts</li>
+<li>user login, logout, and register views</li>
+<li>encrypted passwords</li>
+<li>users can only view their own live video stream and playback clips</li>
+</ul>
+</li>
+</ol>
+<h2 id="Create_a_new_Rails_project">Create a new Rails project</h2>
+<p>In order to create a new Rails project, first create a directory called <code>myapps</code> that will house all of your Rails projects.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">$ mkdir myapps</div><div class="line">$ <span class="built_in">cd</span> myapps</div></pre></td></tr></table></figure>
+
+<p>Afterwards, create your new project by running the command <code>$ rails new [project name]</code> in the <code>myapps</code> directory</p>
+<p>To check that everything is running properly, launch the app locally.</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">$ <span class="built_in">cd</span> [project name]</div><div class="line">$ rails server</div></pre></td></tr></table></figure>
+
+<p>Then view it at <a href="http://localhost:3000" target="_blank" rel="external">http://localhost:3000</a></p>
+<h2 id="Install_Devise">Install Devise</h2>
+<p><a href="https://github.com/plataformatec/devise" target="_blank" rel="external">Devise</a> is an open source authentication and user management tool for Rails apps. To setup Devise, I looked at the <a href="https://github.com/plataformatec/devise#getting-started" target="_blank" rel="external">Getting started</a> steps on their github page.</p>
+<p>First add the following line to the <code>Gemfile</code> located in the project’s main directory:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="title">gem</span> <span class="string">'devise'</span></div></pre></td></tr></table></figure>
+
+<p>Then run the following commands to install it and generate some necessary files</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">$ bundle install</div><div class="line">$ rails generate devise:install</div><div class="line">$ rails g devise:views <span class="comment">#this auto-generates the views for Devise</span></div><div class="line">$ rails generate devise User <span class="comment">#this creates a User model class for devise</span></div><div class="line">$ rake db:migrate <span class="comment">#this is used to update the database with the User model</span></div></pre></td></tr></table></figure>
+
+<p>Next set the Devise login page to be the root page of the application. By default, it is the Rails “Welcome aboard” page.</p>
+<p>In order to do this, edit the <code>/config/routes.rb</code> file as indicated in <a href="http://stackoverflow.com/questions/4954876/setting-devise-login-to-be-root-page" target="_blank" rel="external">this</a> Stack Overflow post to include the following right below the <code>devise_for :users</code> line. Also, make sure to comment out the line  <code>root &#39;welcome#index&#39;</code></p>
+<figure class="highlight ruby"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line"><span class="constant">Rails</span>.application.routes.draw <span class="keyword">do</span></div><div class="line">  devise_for <span class="symbol">:users</span></div><div class="line">  <span class="comment"># The priority is based upon order of creation...</span></div><div class="line">  <span class="comment"># See how all your routes lay out with "rake routes".</span></div><div class="line"></div><div class="line">  <span class="comment"># You can have the root of your site routed with "root"</span></div><div class="line">  <span class="comment"># root 'welcome#index'</span></div><div class="line">  devise_scope <span class="symbol">:user</span> <span class="keyword">do</span></div><div class="line">    authenticated <span class="symbol">:user</span> <span class="keyword">do</span></div><div class="line">      root <span class="string">'home#index'</span>, <span class="symbol">as:</span> <span class="symbol">:authenticated_root</span></div><div class="line">    <span class="keyword">end</span></div><div class="line"></div><div class="line">    unauthenticated <span class="keyword">do</span></div><div class="line">      root <span class="string">'devise/sessions#new'</span>, <span class="symbol">as:</span> <span class="symbol">:unauthenticated_root</span></div><div class="line">    <span class="keyword">end</span></div><div class="line">  <span class="keyword">end</span></div></pre></td></tr></table></figure>
+
+<p>Now when you run your app your home page should be the Devise login page that was previously located at <a href="localhost:3000/users/sign_in" target="_blank" rel="external">localhost:3000/users/sign_in</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://dddotcom.github.io/2015/01/07/threat-level-midnight-part1/" data-id="dkr85kw3ze82qu16" class="article-share-link">Share</a>
+      
+        <a href="http://dddotcom.github.io/2015/01/07/threat-level-midnight-part1/#disqus_thread" class="article-comment-link">Comments</a>
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+  
+    <article id="post-hexo-quickstart" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2015/01/03/hexo-quickstart/" class="article-date">
+  <time datetime="2015-01-03T15:17:58.000Z" itemprop="datePublished">Jan 3 2015</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>title: hexo quickstart</p>
+<h2 id="tags:hexo">tags:hexo</h2>
+<h2 id="Add_a_new_page">Add a new page</h2>
+<p>This command will create a new folder called <code>source\[page name]</code></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ hexo new page <span class="string">"[page name]"</span></div></pre></td></tr></table></figure>
+
+<p>Then edit the <code>themes\landscape\_config.yml</code> to include a link to your new page in the navigation bar found at the top left of your website.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="header"># Header</span></div><div class="line">menu:</div><div class="line">Home: /</div><div class="line">Archives: /archives</div><div class="line">[<span class="link_reference">Page name</span>]:<span class="link_url"> /[page name (case sensitve)]</span></div></pre></td></tr></table></figure>
+
+<h2 id="Enable_Google_Analytics">Enable Google Analytics</h2>
+<p>First add tracking to your website by signing into your Google Analytics account and registering your website.</p>
+<p>Register for the option “Add the tracking code directly to your site” in order to get the Tracking ID for your site</p>
+<p>Afterwards, copy and paste your Tracking ID into the <code>themes\landscape\_config.yml</code> file under the <code>google_analytics</code> tag in the Miscellaneous header</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"><span class="preprocessor"># Miscellaneous</span></div><div class="line">google_analytics: [Tracking ID]</div></pre></td></tr></table></figure>
+
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://dddotcom.github.io/2015/01/03/hexo-quickstart/" data-id="at234aa5dg7n1e1y" class="article-share-link">Share</a>
+      
+        <a href="http://dddotcom.github.io/2015/01/03/hexo-quickstart/#disqus_thread" class="article-comment-link">Comments</a>
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+  
     <article id="post-kbeast-overview" class="article article-type-post" itemscope itemprop="blogPost">
   <div class="article-meta">
     <a href="/2015/01/02/kbeast-overview/" class="article-date">
@@ -96,7 +469,7 @@ ga('send', 'pageview');
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2015/01/02/kbeast-overview/">Kbeast Rootkit Overview</a>
+      <a class="article-title" href="/2015/01/02/kbeast-overview/">Kbeast Part 1: Overview</a>
     </h1>
   
 
@@ -150,7 +523,7 @@ ga('send', 'pageview');
         <a href="http://dddotcom.github.io/2015/01/02/kbeast-overview/#disqus_thread" class="article-comment-link">Comments</a>
       
       
-  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ipsecs/">ipsecs</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kbeast/">kbeast</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kernel-mode/">kernel mode</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/rootkit/">rootkit</a></li></ul>
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ipsecs/">ipsecs</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kbeast/">kbeast</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux-kernel/">linux kernel</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/rootkit/">rootkit</a></li></ul>
 
     </footer>
   </div>
@@ -170,7 +543,7 @@ ga('send', 'pageview');
   <div class="widget-wrap">
     <h3 class="widget-title">Tags</h3>
     <div class="widget">
-      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/disqus/">disqus</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/github/">github</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/hexo/">hexo</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ipsecs/">ipsecs</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kbeast/">kbeast</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel-mode/">kernel mode</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nodejs/">nodejs</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/rootkit/">rootkit</a><span class="tag-list-count">1</span></li></ul>
+      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/disqus/">disqus</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/github/">github</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/hexo/">hexo</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ipsecs/">ipsecs</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kbeast/">kbeast</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux-kernel/">linux kernel</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nodejs/">nodejs</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/rootkit/">rootkit</a><span class="tag-list-count">2</span></li></ul>
     </div>
   </div>
 
@@ -179,7 +552,7 @@ ga('send', 'pageview');
   <div class="widget-wrap">
     <h3 class="widget-title">Tag Cloud</h3>
     <div class="widget tagcloud">
-      <a href="/tags/disqus/" style="font-size: 10.00px;">disqus</a><a href="/tags/github/" style="font-size: 10.00px;">github</a><a href="/tags/hexo/" style="font-size: 20.00px;">hexo</a><a href="/tags/ipsecs/" style="font-size: 10.00px;">ipsecs</a><a href="/tags/kbeast/" style="font-size: 10.00px;">kbeast</a><a href="/tags/kernel-mode/" style="font-size: 10.00px;">kernel mode</a><a href="/tags/nodejs/" style="font-size: 10.00px;">nodejs</a><a href="/tags/rootkit/" style="font-size: 10.00px;">rootkit</a>
+      <a href="/tags/disqus/" style="font-size: 15.00px;">disqus</a><a href="/tags/github/" style="font-size: 15.00px;">github</a><a href="/tags/hexo/" style="font-size: 20.00px;">hexo</a><a href="/tags/ipsecs/" style="font-size: 20.00px;">ipsecs</a><a href="/tags/kbeast/" style="font-size: 20.00px;">kbeast</a><a href="/tags/kernel-mode/" style="font-size: 10.00px;">kernel mode</a><a href="/tags/linux-kernel/" style="font-size: 20.00px;">linux kernel</a><a href="/tags/nodejs/" style="font-size: 15.00px;">nodejs</a><a href="/tags/rootkit/" style="font-size: 20.00px;">rootkit</a>
     </div>
   </div>
 
@@ -188,7 +561,7 @@ ga('send', 'pageview');
   <div class="widget-wrap">
     <h3 class="widget-title">Archives</h3>
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/01/">January 2015</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/12/">December 2014</a><span class="archive-list-count">2</span></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/01/">January 2015</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/12/">December 2014</a><span class="archive-list-count">2</span></li></ul>
     </div>
   </div>
 
@@ -200,15 +573,23 @@ ga('send', 'pageview');
       <ul>
         
           <li>
-            <a href="/2015/01/02/kbeast-overview/">Kbeast Rootkit Overview</a>
+            <a href="/2015/01/10/Kbeast-Source-Code-Analysis/">Kbeast Part 2: Source Code Analysis</a>
           </li>
         
           <li>
-            <a href="/2014/12/28/enabling-disqus-comments/">Enabling Disqus Comments</a>
+            <a href="/2015/01/07/threat-level-midnight-part2/">(no title)</a>
           </li>
         
           <li>
-            <a href="/2014/12/26/how-i-started-my-hexo-website/">How to deploy a Hexo website and host it on Github</a>
+            <a href="/2015/01/07/threat-level-midnight-part1/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2015/01/03/hexo-quickstart/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2015/01/02/kbeast-overview/">Kbeast Part 1: Overview</a>
           </li>
         
       </ul>

@@ -3,17 +3,20 @@
 <head>
   <meta charset="utf-8">
   
-  <title>Tag: rootkit | dd-dot-com</title>
+  <title>Kbeast Part 2: Source Code Analysis | dd-dot-com</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="Developer tools and tutorials">
-<meta property="og:type" content="website">
-<meta property="og:title" content="dd-dot-com">
-<meta property="og:url" content="http://dddotcom.github.io/tags/rootkit/">
+  <meta name="description" content="A rootkit’s primary function is to establish a remote interface with a machine that allows for surveillance and concealment. Thus, in order to analyze KBeast’s functionality as a rootkit, we must look">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Kbeast Part 2: Source Code Analysis">
+<meta property="og:url" content="http://dddotcom.github.io/2015/01/10/Kbeast-Source-Code-Analysis/">
 <meta property="og:site_name" content="dd-dot-com">
-<meta property="og:description" content="Developer tools and tutorials">
+<meta property="og:description" content="A rootkit’s primary function is to establish a remote interface with a machine that allows for surveillance and concealment. Thus, in order to analyze KBeast’s functionality as a rootkit, we must look">
+<meta property="og:image" content="../images/fig_3.1.png">
+<meta property="og:image" content="../images/fig_3.2.png">
+<meta property="og:image" content="../images/fig_3.3.png">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="dd-dot-com">
-<meta name="twitter:description" content="Developer tools and tutorials">
+<meta name="twitter:title" content="Kbeast Part 2: Source Code Analysis">
+<meta name="twitter:description" content="A rootkit’s primary function is to establish a remote interface with a machine that allows for surveillance and concealment. Thus, in order to analyze KBeast’s functionality as a rootkit, we must look">
 
   
     <link rel="alternative" href="/atom.xml" title="dd-dot-com" type="application/atom+xml">
@@ -80,9 +83,7 @@ ga('send', 'pageview');
   </div>
 </header>
       <div class="outer">
-        <section id="main">
-  
-    <article id="post-Kbeast-Source-Code-Analysis" class="article article-type-post" itemscope itemprop="blogPost">
+        <section id="main"><article id="post-Kbeast-Source-Code-Analysis" class="article article-type-post" itemscope itemprop="blogPost">
   <div class="article-meta">
     <a href="/2015/01/10/Kbeast-Source-Code-Analysis/" class="article-date">
   <time datetime="2015-01-10T18:27:29.000Z" itemprop="datePublished">Jan 10 2015</time>
@@ -95,8 +96,8 @@ ga('send', 'pageview');
       <header class="article-header">
         
   
-    <h1 itemprop="name">
-      <a class="article-title" href="/2015/01/10/Kbeast-Source-Code-Analysis/">Kbeast Part 2: Source Code Analysis</a>
+    <h1 class="article-title" itemprop="name">
+      Kbeast Part 2: Source Code Analysis
     </h1>
   
 
@@ -198,88 +199,26 @@ ga('send', 'pageview');
     </footer>
   </div>
   
-</article>
-
-
+    
+<nav id="article-nav">
   
-    <article id="post-kbeast-overview" class="article article-type-post" itemscope itemprop="blogPost">
-  <div class="article-meta">
-    <a href="/2015/01/02/kbeast-overview/" class="article-date">
-  <time datetime="2015-01-02T18:18:29.000Z" itemprop="datePublished">Jan 2 2015</time>
-</a>
-    
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
   
-    <h1 itemprop="name">
-      <a class="article-title" href="/2015/01/02/kbeast-overview/">Kbeast Part 1: Overview</a>
-    </h1>
+    <a href="/2015/01/07/threat-level-midnight-part2/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title"></div>
+    </a>
   
+</nav>
 
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>KBeast is an open source Loadable Kernel Module (LKM) Linux rootkit that was developed in 2012 by IPSECS. Like other kernel mode rootkits, Kbeast hides the kernel module as well as the files, directories, processes, and connections that it creates. It also has the ability to run a password protected backdoor and keylogger on the infected machine.</p>
-<p>Kbeast currently works on the following Linux kernel versions:</p>
-<ul>
-<li>2.6.16</li>
-<li>2.6.18</li>
-<li>2.8.32</li>
-<li>2.6.35</li>
-</ul>
-<h2 id="Where_to_get_it">Where to get it</h2>
-<p>You can install KBeast by downloading the <a href="http://core.ipsecs.com/rootkit/kernel-rootkit/kbeast-v1/" target="_blank" rel="external">ipsecs-kbeast-v1.tar.gz</a> file onto a Linux machine running any of the kernel versions mentioned above.</p>
-<p>The contents of the untarred file are as follows:</p>
-<ul>
-<li>LICENSE</li>
-<li>Makefile</li>
-<li>bd-ipsecs-kbeast-v1.c</li>
-<li>config.h</li>
-<li>ipsecs-kbeast-v1.c</li>
-<li>ipsecs-kbeast-v1.cc1</li>
-<li>setup</li>
-</ul>
-<h4 id="Files_to_note">Files to note</h4>
-<h5 id="config-h"><code>config.h</code></h5>
-<p>A configuration file that can be edited before compiling and installing Kbeast. This file contains several important settings such as:</p>
-<ul>
-<li><p>the <strong>port number</strong> used for the backdoor</p>
-</li>
-<li><p>the <strong>password</strong> for the backdoor</p>
-</li>
-<li><p>the <strong>prefix</strong> for hidden files<br>  Any files whose name contains the specified prefix will be hidden from system calls such as the <code>ls</code> command. By default, this prefix is <code>“_h4x_”</code>.</p>
-</li>
-<li><p>the <strong>directory</strong> where the rootkit will be saved<br>  By default this is the <code>“/usr/_h4x_”</code> directory. It will also be hidden from system calls since the directory name contains the hidden prefix.</p>
-</li>
-</ul>
-<h5 id="setup"><code>setup</code></h5>
-<p>An installer script that automatically loads Kbeast into the machine’s kernel. The script sets up the hiding functionality and automatically loads the kernel module and backdoor.</p>
-<h3 id="Resources">Resources</h3>
-<p><a href="http://core.ipsecs.com/rootkit/kernel-rootkit/kbeast-v1/" target="_blank" rel="external">Kbeast Source Code</a><br><a href="http://www.cs.rutgers.edu/~iftode/paladin08.pdf" target="_blank" rel="external">Automated Containment of Rootkit Attacks</a><br><a href="http://progdave.wikidot.com/how-to-build-kbeast-linux-rootkit-for-centos-6-4-x86-64" target="_blank" rel="external">How To Build Kbeast Linux Rootkit For Centos 64 X86 64</a></p>
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://dddotcom.github.io/2015/01/02/kbeast-overview/" data-id="8ykg9dzoveg4h6sd" class="article-share-link">Share</a>
-      
-        <a href="http://dddotcom.github.io/2015/01/02/kbeast-overview/#disqus_thread" class="article-comment-link">Comments</a>
-      
-      
-  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ipsecs/">ipsecs</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kbeast/">kbeast</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux-kernel/">linux kernel</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/rootkit/">rootkit</a></li></ul>
-
-    </footer>
-  </div>
   
 </article>
 
 
-  
-  
+<section id="comments">
+  <div id="disqus_thread">
+    <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  </div>
+</section>
 </section>
         
           <aside id="sidebar">
@@ -370,11 +309,13 @@ ga('send', 'pageview');
 <script>
   var disqus_shortname = 'dddotcomgithubio';
   
+  var disqus_url = 'http://dddotcom.github.io/2015/01/10/Kbeast-Source-Code-Analysis/';
+  
   (function(){
     var dsq = document.createElement('script');
     dsq.type = 'text/javascript';
     dsq.async = true;
-    dsq.src = '//' + disqus_shortname + '.disqus.com/count.js';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
   })();
 </script>

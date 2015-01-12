@@ -82,6 +82,126 @@ ga('send', 'pageview');
       <div class="outer">
         <section id="main">
   
+    <article id="post-Kbeast-Source-Code-Analysis" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2015/01/10/Kbeast-Source-Code-Analysis/" class="article-date">
+  <time datetime="2015-01-10T18:27:29.000Z" itemprop="datePublished">Jan 10 2015</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2015/01/10/Kbeast-Source-Code-Analysis/">Kbeast Part 2: Source Code Analysis</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>A rootkit’s primary function is to establish a remote interface with a machine that allows for surveillance and concealment. Thus, in order to analyze KBeast’s functionality as a rootkit, we must look at the concealment and stealth techniques it uses to make itself undetectable on the compromised machine.</p>
+<p>KBeast uses some common kernel mode rootkit techniques to hide its kernel module and other suspicious processes. An in-depth look at how KBeast functions and its source code will help us see how these techniques work.</p>
+<h2 id="Hiding_the_Kernel_Model">Hiding the Kernel Model</h2>
+<p>The two Linux file systems that provide interfaces to kernel data structures are the <strong>proc</strong> and <strong>sysfs</strong> file systems.</p>
+<h4 id="Proc_File_System">Proc File System</h4>
+<p>The proc file system lists all the currently loaded kernel modules in the  <code>/proc/modules</code> file.<br>Running the <code>cat /proc/modules</code> command produces a list of kernel modules in the following 6 column format:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">(1)          (2)   (3)    (4)      (5)           (6)</div><div class="line">mptscsih    40150   1   mptspi,   Live    0x0000000000000000</div></pre></td></tr></table></figure>
+
+<ul>
+<li>Column 1: module name</li>
+<li>Column 2: size of module in bytes</li>
+<li>Column 3: number of loaded instances</li>
+<li>Column 4: list of modules the module is dependent on to function</li>
+<li>Column 5: load state of module (states are Live, Loading, or Unloading)</li>
+<li>Column 6: kernel memory offset for the module</li>
+</ul>
+<p>Running the <code>lsmod</code> command also prints the contents of the  <code>/proc/modules</code> file . Since <code>lsmod</code> grabs its data from <code>/proc/modules</code>, any changes to the file would also be reflected in the <code>lsmod</code> output.</p>
+<h4 id="Sysfs_File_System">Sysfs File System</h4>
+<p>This file system creates a directory per active kernel module which contains information on the module such as the its name, sections, and parameters.</p>
+<p>Using both the <strong>sysfs</strong> and <strong>proc</strong> file systems, a security tool can compare the <code>proc/modules</code> list with the directories in the <code>sys/module</code> directory. Any modules found in sysfs but not in proc are noted as hidden kernel modules.<br>Thus, when trying to hide the kernel, a rootkit should take precautions to hide from both the <strong>sysfs</strong> and <strong>proc</strong> filesystems.</p>
+<h4 id="Kbeast_Hiding_Technique">Kbeast Hiding Technique</h4>
+<p>Rootkits must hide themselves from the list of loaded modules because system administrators and security tools often use the above methods to detect a malicious kernel module rootkit. If an administrator was to notice that a suspicious module was present on the module list, he would most likely take action to remove it, thus disabling the rootkit.</p>
+<p>In order to do this, many LKM rootkits delete themselves from the module list in the kernel memory. Being deleted from the list allows the rootkit to remain active in memory while not being seen by the <code>lsmod</code> or <code>cat /proc/modules</code> commands.</p>
+<p>The process to do this is very simple and requires only one line of code. KBeast uses this one line technique as shown in line 677.</p>
+<p><img src="../images/fig_3.1.png" alt=""><br>KBeast uses <code>__this_module</code> to obtain a reference to the LKM. It then uses the macro <code>list_del_init</code> to delete the module from the list and reinitialize it.</p>
+<p>However, as mentioned above, hiding from sysfs is also important and fairly easy to do with the following line of code:</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">kobject_del(__this_module.holders_dir-&gt;parent);</div></pre></td></tr></table></figure>
+
+<p>As explained in <a href="http://news.asis.io/sites/default/files/The%20Art%20of%20Memory%20Forensics.pdf" target="_blank" rel="external">The Art of Memory Forensics</a>, “This code first finds a reference to sysfs (holders_dir), and then removes itself from the parent’s list of children”.</p>
+<h2 id="Hooking_the_System_Call_Table">Hooking the System Call Table</h2>
+<p>KBeast manipulates the system call table using the hooking technique. Hooking is the process of replacing an existing, legitimate call table address with the address of a routine of our own design. By hijacking certain entries in the system call table, rootkits can prevent certain processes from being killed or prevent important files from being seen, deleted, or tampered with.</p>
+<p>KBeast hooks the following system calls</p>
+<ul>
+<li>unlink  </li>
+<li>rmdir</li>
+<li>unlinkat</li>
+<li>rename</li>
+<li>open</li>
+<li>kill</li>
+<li>read</li>
+<li>write</li>
+<li>getdents</li>
+<li>delete_module<br>and replaces the system call handler’s address with the address of its own handler.</li>
+</ul>
+<p>Hooking these system calls ensures that files starting with the defined prefix remain hidden and unaltered.</p>
+<h4 id="Kbeast_Hooking">Kbeast Hooking</h4>
+<p>Looking more in depth at the <code>h4x_read</code> function in KBeast’s source code shows how hooking is done.</p>
+<p><img src="../images/fig_3.2.png" alt=""></p>
+<p>The <code>h4x_read</code> function hooks the <strong>read</strong> system call by faking the output of the <code>ps</code>, <code>pstree</code>, <code>top</code>, and <code>lsof</code> commands.</p>
+<p>In <strong>line 239</strong> the function uses the Linux Kernel API’s <code>copy_from_user function</code> to copy 255 bytes of the data from the user space into the <code>kbuf</code> buffer.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="number">239</span>   copy_from_user(kbuf,buf,<span class="number">255</span>);</div></pre></td></tr></table></figure>
+
+<p>In this case the data from the user space would be a user’s input to the terminal such as <code>ps –aux | grep kbeast</code> if he was looking for the KBeast rootkit in the running kernel processes of his system.</p>
+<p>In <strong>lines 240 – 241</strong>, the function checks the <code>current</code> variable. This variable is a pointer to the process that has issued the system call. The <code>current-&gt;comm</code> field is the command name of the current process. Essentially the function checks to see whether the user has issued any of the commands <code>ps</code>, <code>pstree</code>, <code>top</code>, or <code>lsof</code>, and if so, it then checks if the strings <code>&quot;_h4x_&quot;</code>or <code>&quot;kbeast&quot;</code> are also in the user input. If so, the function throws the ENOENT or “No such file or directory” error in the attempt to hide KBeast’s running processes from the user.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="number">240</span> <span class="keyword">if</span> ((<span class="built_in">strstr</span>(current-&gt;comm,<span class="string">"ps"</span>))||(<span class="built_in">strstr</span>(current-&gt;comm,<span class="string">"pstree"</span>))||</div><div class="line"><span class="number">241</span>   (<span class="built_in">strstr</span>(current-&gt;comm,<span class="string">"top"</span>))||(<span class="built_in">strstr</span>(current-&gt;comm,<span class="string">"lsof"</span>))){</div><div class="line"><span class="number">242</span>     <span class="keyword">if</span>(<span class="built_in">strstr</span>(kbuf,_H4X0R_)||<span class="built_in">strstr</span>(kbuf,KBEAST))</div><div class="line"><span class="number">243</span>     {</div><div class="line"><span class="number">244</span>       kfree(kbuf);</div><div class="line"><span class="number">245</span>       <span class="keyword">return</span> -ENOENT;</div><div class="line"><span class="number">246</span>     }</div><div class="line"><span class="number">247</span>   }</div></pre></td></tr></table></figure>
+
+<p>If <code>&quot;_h4x_&quot;</code> or <code>&quot;kbeast&quot;</code> are not in the user input string, the function simply executes with the correct read system call function as seen in <strong>line 249</strong>.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="number">249</span>   r=o_read(fd,buf,count);</div></pre></td></tr></table></figure>
+
+<p>While hooking is a common technique used by many rootkits, it is very easy to detect. Usually in a call table, there is a certain range of addresses that the table should contain. Thus, all an investigator needs to do is check that the call table does not contain any addresses outside the allowed address range. Any addresses outside of this range, that may point to the rootkit’s own handlers, would be immediately deemed as hooked.</p>
+<h2 id="Privilege_Escalation">Privilege Escalation</h2>
+<p>In early versions of 2.6 kernels, the user ID and group ID of a process could simply be set to 0 in order to elevate the process to have root privileges. However, later versions of the 2.6 kernel came with a cred structure which holds all the information related to the privileges of a process.</p>
+<h4 id="Cred_Structure">Cred Structure</h4>
+<p>The older 2.6 kernel has the <code>prepare_creds</code> and <code>commit_creds</code> functions that allow the caller to allocate and store new process credentials. A rootkit can leverage these functions to create another cred structure with root privileges, thus giving the attacker’s process full control of the system.</p>
+<p>A second way to escalate privileges without creating a new structure is to borrow another process’ cred structure. By pointing a malicious process’ cred structure to a valid one with root privileges, the malicious process gains the same privileges as the valid one. This is often done by targeting a process that has root privileges and does not exit. A common process to target is <code>init</code> which runs as root and exits only when the machine is rebooting or powering off.</p>
+<p>While easier than the previous method mentioned, this method is easily detectable. Usually, every process gets a unique cred structure which is never shared or borrowed by another process. Thus if an investigator looks at any processes that share cred structures they can investigate the suspicious process and uncover the rootkit.</p>
+<h4 id="Kbeast_Privilege_Escalation">Kbeast Privilege Escalation</h4>
+<p>KBeast uses the first method and creates its own cred structure which escalates to a root bash shell whenever <code>kill</code> is called with a defined signal number (“<em>MAGIC_SIG</em>“) and process id (“<em>MAGIC_PID</em>“) as shown in the <code>h4x_kill</code> function.</p>
+<p><img src="../images/fig_3.3.png" alt=""></p>
+<p>In <strong>line 647</strong>, the function gets the task structure of the process with the given process id.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="number">647</span>   cur = pid_task(find_pid_ns(pid, &init_pid_ns), PIDTYPE_PID);</div></pre></td></tr></table></figure>
+
+<p>In <strong>line 649</strong>, if the process contains the string of the given prefix, <code>&quot;_h4x_&quot;</code>, or <code>&quot;kbeast&quot;</code> the function returns a “permission denied” error thus preventing the user from killing the rootkit or any of its related processes.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="number">649</span>     <span class="keyword">if</span>(<span class="built_in">strstr</span>(cur-&gt;comm,_H4X0R_)||<span class="built_in">strstr</span>(cur-&gt;comm,KBEAST)){</div><div class="line"><span class="number">650</span>   <span class="keyword">return</span> -EACCES;</div><div class="line"><span class="number">651</span> }</div></pre></td></tr></table></figure>
+
+<p><strong>Line 653</strong> starts the function’s privilege escalation capability. If the inputted process id and signal both match the predefined <code>&quot;_MAGIC_SIG_&quot;</code> and <code>&quot;_MAGIC_PID_&quot;</code>, the function starts the privilege escalation process to root. It does so by creating a new cred structure to allocate and store some new process credentials. Setting all the fields of the cred structure to 0 means that the process associated with this cred will have root privileges.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="number">655</span> <span class="keyword">struct</span> cred *<span class="keyword">new</span>=prepare_creds();<span class="keyword">if</span>(<span class="keyword">new</span>){<span class="keyword">new</span>-&gt;uid=<span class="number">0</span>;<span class="keyword">new</span>-&gt;euid=<span class="number">0</span>;<span class="keyword">new</span>-&gt;gid=<span class="number">0</span>;<span class="keyword">new</span>-&gt;egid=<span class="number">0</span>;commit_creds(<span class="keyword">new</span>);<span class="keyword">return</span> <span class="number">0</span>;}</div></pre></td></tr></table></figure>
+
+<h3 id="Resources">Resources</h3>
+<p><a href="http://www.centos.org/docs/5/html/Deployment_Guide-en-US/s1-proc-topfiles.html" target="_blank" rel="external">Info on /proc/modules</a><br><a href="http://www.jblearning.com/catalog/9781449626365/" target="_blank" rel="external">The Rootkit Arsenal</a><br><a href="http://news.asis.io/sites/default/files/The%20Art%20of%20Memory%20Forensics.pdf" target="_blank" rel="external">The Art of Memory Forensics</a><br><a href="http://volatility-labs.blogspot.com/2012/09/movp-15-kbeast-rootkit-detecting-hidden.html" target="_blank" rel="external">Volatility Labs: Kbeast Rootkit</a><br><a href="http://www.xml.com/ldd/chapter/book/ch02.html" target="_blank" rel="external">Linux Device Drivers</a><br><a href="http://linux.die.net/man/3/errno" target="_blank" rel="external">errno - Linux man page</a><br><a href="http://volatility-labs.blogspot.com/2012/09/movp-14-average-coder-rootkit-bash.html" target="_blank" rel="external">Volatility Labs: Average Coder Rootkit</a><br><a href="http://r00tkit.me/maK_it-Linux-Rootkit.pdf" target="_blank" rel="external">maK_it: Linux Rootkit</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://dddotcom.github.io/2015/01/10/Kbeast-Source-Code-Analysis/" data-id="7l4d5pjckm9u9fe7" class="article-share-link">Share</a>
+      
+        <a href="http://dddotcom.github.io/2015/01/10/Kbeast-Source-Code-Analysis/#disqus_thread" class="article-comment-link">Comments</a>
+      
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ipsecs/">ipsecs</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kbeast/">kbeast</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux-kernel/">linux kernel</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/rootkit/">rootkit</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
     <article id="post-kbeast-overview" class="article article-type-post" itemscope itemprop="blogPost">
   <div class="article-meta">
     <a href="/2015/01/02/kbeast-overview/" class="article-date">
@@ -96,7 +216,7 @@ ga('send', 'pageview');
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2015/01/02/kbeast-overview/">Kbeast Rootkit Overview</a>
+      <a class="article-title" href="/2015/01/02/kbeast-overview/">Kbeast Part 1: Overview</a>
     </h1>
   
 
@@ -150,7 +270,7 @@ ga('send', 'pageview');
         <a href="http://dddotcom.github.io/2015/01/02/kbeast-overview/#disqus_thread" class="article-comment-link">Comments</a>
       
       
-  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ipsecs/">ipsecs</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kbeast/">kbeast</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kernel-mode/">kernel mode</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/rootkit/">rootkit</a></li></ul>
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ipsecs/">ipsecs</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kbeast/">kbeast</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux-kernel/">linux kernel</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/rootkit/">rootkit</a></li></ul>
 
     </footer>
   </div>
@@ -170,7 +290,7 @@ ga('send', 'pageview');
   <div class="widget-wrap">
     <h3 class="widget-title">Tags</h3>
     <div class="widget">
-      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/disqus/">disqus</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/github/">github</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/hexo/">hexo</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ipsecs/">ipsecs</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kbeast/">kbeast</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kernel-mode/">kernel mode</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nodejs/">nodejs</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/rootkit/">rootkit</a><span class="tag-list-count">1</span></li></ul>
+      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/disqus/">disqus</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/github/">github</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/hexo/">hexo</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ipsecs/">ipsecs</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/kbeast/">kbeast</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/linux-kernel/">linux kernel</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/nodejs/">nodejs</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/rootkit/">rootkit</a><span class="tag-list-count">2</span></li></ul>
     </div>
   </div>
 
@@ -179,7 +299,7 @@ ga('send', 'pageview');
   <div class="widget-wrap">
     <h3 class="widget-title">Tag Cloud</h3>
     <div class="widget tagcloud">
-      <a href="/tags/disqus/" style="font-size: 10.00px;">disqus</a><a href="/tags/github/" style="font-size: 10.00px;">github</a><a href="/tags/hexo/" style="font-size: 20.00px;">hexo</a><a href="/tags/ipsecs/" style="font-size: 10.00px;">ipsecs</a><a href="/tags/kbeast/" style="font-size: 10.00px;">kbeast</a><a href="/tags/kernel-mode/" style="font-size: 10.00px;">kernel mode</a><a href="/tags/nodejs/" style="font-size: 10.00px;">nodejs</a><a href="/tags/rootkit/" style="font-size: 10.00px;">rootkit</a>
+      <a href="/tags/disqus/" style="font-size: 15.00px;">disqus</a><a href="/tags/github/" style="font-size: 15.00px;">github</a><a href="/tags/hexo/" style="font-size: 20.00px;">hexo</a><a href="/tags/ipsecs/" style="font-size: 20.00px;">ipsecs</a><a href="/tags/kbeast/" style="font-size: 20.00px;">kbeast</a><a href="/tags/kernel-mode/" style="font-size: 10.00px;">kernel mode</a><a href="/tags/linux-kernel/" style="font-size: 20.00px;">linux kernel</a><a href="/tags/nodejs/" style="font-size: 15.00px;">nodejs</a><a href="/tags/rootkit/" style="font-size: 20.00px;">rootkit</a>
     </div>
   </div>
 
@@ -188,7 +308,7 @@ ga('send', 'pageview');
   <div class="widget-wrap">
     <h3 class="widget-title">Archives</h3>
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/01/">January 2015</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/12/">December 2014</a><span class="archive-list-count">2</span></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/01/">January 2015</a><span class="archive-list-count">5</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/12/">December 2014</a><span class="archive-list-count">2</span></li></ul>
     </div>
   </div>
 
@@ -200,15 +320,23 @@ ga('send', 'pageview');
       <ul>
         
           <li>
-            <a href="/2015/01/02/kbeast-overview/">Kbeast Rootkit Overview</a>
+            <a href="/2015/01/10/Kbeast-Source-Code-Analysis/">Kbeast Part 2: Source Code Analysis</a>
           </li>
         
           <li>
-            <a href="/2014/12/28/enabling-disqus-comments/">Enabling Disqus Comments</a>
+            <a href="/2015/01/07/threat-level-midnight-part2/">(no title)</a>
           </li>
         
           <li>
-            <a href="/2014/12/26/how-i-started-my-hexo-website/">How to deploy a Hexo website and host it on Github</a>
+            <a href="/2015/01/07/threat-level-midnight-part1/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2015/01/03/hexo-quickstart/">(no title)</a>
+          </li>
+        
+          <li>
+            <a href="/2015/01/02/kbeast-overview/">Kbeast Part 1: Overview</a>
           </li>
         
       </ul>

@@ -3,17 +3,35 @@
 <head>
   <meta charset="utf-8">
   
-  <title>Kbeast Part 1: Overview | dd-dot-com</title>
+  <title>dd-dot-com</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="KBeast is an open source Loadable Kernel Module (LKM) Linux rootkit that was developed in 2012 by IPSECS. Like other kernel mode rootkits, Kbeast hides the kernel module as well as the files, director">
+  <meta name="description" content="title: hexo quickstart
+tags:hexo
+Add a new page
+This command will create a new folder called source\[page name]
+1$ hexo new page '[page name]'
+
+Then edit the themes\landscape\_config.yml to include a">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Kbeast Part 1: Overview">
-<meta property="og:url" content="http://dddotcom.github.io/2015/01/02/kbeast-overview/">
+<meta property="og:title" content="dd-dot-com">
+<meta property="og:url" content="http://dddotcom.github.io/2015/01/03/hexo-quickstart/">
 <meta property="og:site_name" content="dd-dot-com">
-<meta property="og:description" content="KBeast is an open source Loadable Kernel Module (LKM) Linux rootkit that was developed in 2012 by IPSECS. Like other kernel mode rootkits, Kbeast hides the kernel module as well as the files, director">
+<meta property="og:description" content="title: hexo quickstart
+tags:hexo
+Add a new page
+This command will create a new folder called source\[page name]
+1$ hexo new page '[page name]'
+
+Then edit the themes\landscape\_config.yml to include a">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Kbeast Part 1: Overview">
-<meta name="twitter:description" content="KBeast is an open source Loadable Kernel Module (LKM) Linux rootkit that was developed in 2012 by IPSECS. Like other kernel mode rootkits, Kbeast hides the kernel module as well as the files, director">
+<meta name="twitter:title" content="dd-dot-com">
+<meta name="twitter:description" content="title: hexo quickstart
+tags:hexo
+Add a new page
+This command will create a new folder called source\[page name]
+1$ hexo new page '[page name]'
+
+Then edit the themes\landscape\_config.yml to include a">
 
   
     <link rel="alternative" href="/atom.xml" title="dd-dot-com" type="application/atom+xml">
@@ -80,83 +98,49 @@ ga('send', 'pageview');
   </div>
 </header>
       <div class="outer">
-        <section id="main"><article id="post-kbeast-overview" class="article article-type-post" itemscope itemprop="blogPost">
+        <section id="main"><article id="post-hexo-quickstart" class="article article-type-post" itemscope itemprop="blogPost">
   <div class="article-meta">
-    <a href="/2015/01/02/kbeast-overview/" class="article-date">
-  <time datetime="2015-01-02T18:18:29.000Z" itemprop="datePublished">Jan 2 2015</time>
+    <a href="/2015/01/03/hexo-quickstart/" class="article-date">
+  <time datetime="2015-01-03T15:17:58.000Z" itemprop="datePublished">Jan 3 2015</time>
 </a>
     
   </div>
   <div class="article-inner">
     
     
-      <header class="article-header">
-        
-  
-    <h1 class="article-title" itemprop="name">
-      Kbeast Part 1: Overview
-    </h1>
-  
-
-      </header>
-    
     <div class="article-entry" itemprop="articleBody">
       
-        <p>KBeast is an open source Loadable Kernel Module (LKM) Linux rootkit that was developed in 2012 by IPSECS. Like other kernel mode rootkits, Kbeast hides the kernel module as well as the files, directories, processes, and connections that it creates. It also has the ability to run a password protected backdoor and keylogger on the infected machine.</p>
-<p>Kbeast currently works on the following Linux kernel versions:</p>
-<ul>
-<li>2.6.16</li>
-<li>2.6.18</li>
-<li>2.8.32</li>
-<li>2.6.35</li>
-</ul>
-<h2 id="Where_to_get_it">Where to get it</h2>
-<p>You can install KBeast by downloading the <a href="http://core.ipsecs.com/rootkit/kernel-rootkit/kbeast-v1/" target="_blank" rel="external">ipsecs-kbeast-v1.tar.gz</a> file onto a Linux machine running any of the kernel versions mentioned above.</p>
-<p>The contents of the untarred file are as follows:</p>
-<ul>
-<li>LICENSE</li>
-<li>Makefile</li>
-<li>bd-ipsecs-kbeast-v1.c</li>
-<li>config.h</li>
-<li>ipsecs-kbeast-v1.c</li>
-<li>ipsecs-kbeast-v1.cc1</li>
-<li>setup</li>
-</ul>
-<h4 id="Files_to_note">Files to note</h4>
-<h5 id="config-h"><code>config.h</code></h5>
-<p>A configuration file that can be edited before compiling and installing Kbeast. This file contains several important settings such as:</p>
-<ul>
-<li><p>the <strong>port number</strong> used for the backdoor</p>
-</li>
-<li><p>the <strong>password</strong> for the backdoor</p>
-</li>
-<li><p>the <strong>prefix</strong> for hidden files<br>  Any files whose name contains the specified prefix will be hidden from system calls such as the <code>ls</code> command. By default, this prefix is <code>“_h4x_”</code>.</p>
-</li>
-<li><p>the <strong>directory</strong> where the rootkit will be saved<br>  By default this is the <code>“/usr/_h4x_”</code> directory. It will also be hidden from system calls since the directory name contains the hidden prefix.</p>
-</li>
-</ul>
-<h5 id="setup"><code>setup</code></h5>
-<p>An installer script that automatically loads Kbeast into the machine’s kernel. The script sets up the hiding functionality and automatically loads the kernel module and backdoor.</p>
-<h3 id="Resources">Resources</h3>
-<p><a href="http://core.ipsecs.com/rootkit/kernel-rootkit/kbeast-v1/" target="_blank" rel="external">Kbeast Source Code</a><br><a href="http://www.cs.rutgers.edu/~iftode/paladin08.pdf" target="_blank" rel="external">Automated Containment of Rootkit Attacks</a><br><a href="http://progdave.wikidot.com/how-to-build-kbeast-linux-rootkit-for-centos-6-4-x86-64" target="_blank" rel="external">How To Build Kbeast Linux Rootkit For Centos 64 X86 64</a></p>
+        <p>title: hexo quickstart</p>
+<h2 id="tags:hexo">tags:hexo</h2>
+<h2 id="Add_a_new_page">Add a new page</h2>
+<p>This command will create a new folder called <code>source\[page name]</code></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ hexo new page <span class="string">"[page name]"</span></div></pre></td></tr></table></figure>
+
+<p>Then edit the <code>themes\landscape\_config.yml</code> to include a link to your new page in the navigation bar found at the top left of your website.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="header"># Header</span></div><div class="line">menu:</div><div class="line">Home: /</div><div class="line">Archives: /archives</div><div class="line">[<span class="link_reference">Page name</span>]:<span class="link_url"> /[page name (case sensitve)]</span></div></pre></td></tr></table></figure>
+
+<h2 id="Enable_Google_Analytics">Enable Google Analytics</h2>
+<p>First add tracking to your website by signing into your Google Analytics account and registering your website.</p>
+<p>Register for the option “Add the tracking code directly to your site” in order to get the Tracking ID for your site</p>
+<p>Afterwards, copy and paste your Tracking ID into the <code>themes\landscape\_config.yml</code> file under the <code>google_analytics</code> tag in the Miscellaneous header</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"><span class="preprocessor"># Miscellaneous</span></div><div class="line">google_analytics: [Tracking ID]</div></pre></td></tr></table></figure>
+
 
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://dddotcom.github.io/2015/01/02/kbeast-overview/" data-id="8ykg9dzoveg4h6sd" class="article-share-link">Share</a>
+      <a data-url="http://dddotcom.github.io/2015/01/03/hexo-quickstart/" data-id="at234aa5dg7n1e1y" class="article-share-link">Share</a>
       
-        <a href="http://dddotcom.github.io/2015/01/02/kbeast-overview/#disqus_thread" class="article-comment-link">Comments</a>
+        <a href="http://dddotcom.github.io/2015/01/03/hexo-quickstart/#disqus_thread" class="article-comment-link">Comments</a>
       
       
-  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ipsecs/">ipsecs</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kbeast/">kbeast</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux-kernel/">linux kernel</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/rootkit/">rootkit</a></li></ul>
-
     </footer>
   </div>
   
     
 <nav id="article-nav">
   
-    <a href="/2015/01/03/hexo-quickstart/" id="article-nav-newer" class="article-nav-link-wrap">
+    <a href="/2015/01/07/threat-level-midnight-part1/" id="article-nav-newer" class="article-nav-link-wrap">
       <strong class="article-nav-caption">Newer</strong>
       <div class="article-nav-title">
         
@@ -166,9 +150,9 @@ ga('send', 'pageview');
     </a>
   
   
-    <a href="/2014/12/28/enabling-disqus-comments/" id="article-nav-older" class="article-nav-link-wrap">
+    <a href="/2015/01/02/kbeast-overview/" id="article-nav-older" class="article-nav-link-wrap">
       <strong class="article-nav-caption">Older</strong>
-      <div class="article-nav-title">Enabling Disqus Comments</div>
+      <div class="article-nav-title">Kbeast Part 1: Overview</div>
     </a>
   
 </nav>
@@ -272,7 +256,7 @@ ga('send', 'pageview');
 <script>
   var disqus_shortname = 'dddotcomgithubio';
   
-  var disqus_url = 'http://dddotcom.github.io/2015/01/02/kbeast-overview/';
+  var disqus_url = 'http://dddotcom.github.io/2015/01/03/hexo-quickstart/';
   
   (function(){
     var dsq = document.createElement('script');
