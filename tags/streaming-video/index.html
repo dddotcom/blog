@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8">
   
-  <title>Kbeast Part 1: Overview | dd-dot-com</title>
+  <title>Tag: streaming video | dd-dot-com</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="KBeast is an open source Loadable Kernel Module (LKM) Linux rootkit that was developed in 2012 by IPSECS. Like other kernel mode rootkits, Kbeast hides the kernel module as well as the files, director">
-<meta property="og:type" content="article">
-<meta property="og:title" content="Kbeast Part 1: Overview">
-<meta property="og:url" content="http://dddotcom.github.io/2015/01/02/kbeast-overview/">
+  <meta name="description" content="Developer tools and tutorials">
+<meta property="og:type" content="website">
+<meta property="og:title" content="dd-dot-com">
+<meta property="og:url" content="http://dddotcom.github.io/tags/streaming-video/">
 <meta property="og:site_name" content="dd-dot-com">
-<meta property="og:description" content="KBeast is an open source Loadable Kernel Module (LKM) Linux rootkit that was developed in 2012 by IPSECS. Like other kernel mode rootkits, Kbeast hides the kernel module as well as the files, director">
+<meta property="og:description" content="Developer tools and tutorials">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Kbeast Part 1: Overview">
-<meta name="twitter:description" content="KBeast is an open source Loadable Kernel Module (LKM) Linux rootkit that was developed in 2012 by IPSECS. Like other kernel mode rootkits, Kbeast hides the kernel module as well as the files, director">
+<meta name="twitter:title" content="dd-dot-com">
+<meta name="twitter:description" content="Developer tools and tutorials">
 
   
     <link rel="alternative" href="/atom.xml" title="dd-dot-com" type="application/atom+xml">
@@ -80,10 +80,12 @@ ga('send', 'pageview');
   </div>
 </header>
       <div class="outer">
-        <section id="main"><article id="post-kbeast-overview" class="article article-type-post" itemscope itemprop="blogPost">
+        <section id="main">
+  
+    <article id="post-streaming-video-from-pi" class="article article-type-post" itemscope itemprop="blogPost">
   <div class="article-meta">
-    <a href="/2015/01/02/kbeast-overview/" class="article-date">
-  <time datetime="2015-01-02T18:18:29.000Z" itemprop="datePublished">Jan 2 2015</time>
+    <a href="/2015/01/16/streaming-video-from-pi/" class="article-date">
+  <time datetime="2015-01-16T16:12:49.000Z" itemprop="datePublished">Jan 16 2015</time>
 </a>
     
   </div>
@@ -93,8 +95,8 @@ ga('send', 'pageview');
       <header class="article-header">
         
   
-    <h1 class="article-title" itemprop="name">
-      Kbeast Part 1: Overview
+    <h1 itemprop="name">
+      <a class="article-title" href="/2015/01/16/streaming-video-from-pi/">Streaming Video from Raspberry Pi to Windows PC</a>
     </h1>
   
 
@@ -102,86 +104,63 @@ ga('send', 'pageview');
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>KBeast is an open source Loadable Kernel Module (LKM) Linux rootkit that was developed in 2012 by IPSECS. Like other kernel mode rootkits, Kbeast hides the kernel module as well as the files, directories, processes, and connections that it creates. It also has the ability to run a password protected backdoor and keylogger on the infected machine.</p>
-<p>Kbeast currently works on the following Linux kernel versions:</p>
+        <h2 id="What_you’ll_need">What you’ll need</h2>
 <ul>
-<li>2.6.16</li>
-<li>2.6.18</li>
-<li>2.8.32</li>
-<li>2.6.35</li>
+<li>Raspberry Pi running the Raspbian OS with internet connection</li>
+<li><a href="http://www.adafruit.com/product/1567" target="_blank" rel="external">RasPi NoIR Camera</a></li>
 </ul>
-<h2 id="Where_to_get_it">Where to get it</h2>
-<p>You can install KBeast by downloading the <a href="http://core.ipsecs.com/rootkit/kernel-rootkit/kbeast-v1/" target="_blank" rel="external">ipsecs-kbeast-v1.tar.gz</a> file onto a Linux machine running any of the kernel versions mentioned above.</p>
-<p>The contents of the untarred file are as follows:</p>
+<p>For troubleshooting I find it helpful to hook up your Pi to a monitor, mouse, and keyboard.</p>
 <ul>
-<li>LICENSE</li>
-<li>Makefile</li>
-<li>bd-ipsecs-kbeast-v1.c</li>
-<li>config.h</li>
-<li>ipsecs-kbeast-v1.c</li>
-<li>ipsecs-kbeast-v1.cc1</li>
-<li>setup</li>
+<li>Monitor</li>
+<li>HDMI Cable</li>
+<li>USB mouse</li>
+<li>USB keyboard<br><strong>Note:</strong> Raspberry Pis have a limited amount of USB ports. From 1 (Model A) to 4 ports (Model B+). I used Model B, you can view the different model specs <a href="http://downloads.element14.com/raspberryPi1.html" target="_blank" rel="external">here</a> and <a href="http://www.raspberrypi.org/products/model-b-plus/" target="_blank" rel="external">here</a></li>
 </ul>
-<h4 id="Files_to_note">Files to note</h4>
-<h5 id="config-h"><code>config.h</code></h5>
-<p>A configuration file that can be edited before compiling and installing Kbeast. This file contains several important settings such as:</p>
-<ul>
-<li><p>the <strong>port number</strong> used for the backdoor</p>
-</li>
-<li><p>the <strong>password</strong> for the backdoor</p>
-</li>
-<li><p>the <strong>prefix</strong> for hidden files<br>  Any files whose name contains the specified prefix will be hidden from system calls such as the <code>ls</code> command. By default, this prefix is <code>“_h4x_”</code>.</p>
-</li>
-<li><p>the <strong>directory</strong> where the rootkit will be saved<br>  By default this is the <code>“/usr/_h4x_”</code> directory. It will also be hidden from system calls since the directory name contains the hidden prefix.</p>
-</li>
-</ul>
-<h5 id="setup"><code>setup</code></h5>
-<p>An installer script that automatically loads Kbeast into the machine’s kernel. The script sets up the hiding functionality and automatically loads the kernel module and backdoor.</p>
-<h3 id="Resources">Resources</h3>
-<p><a href="http://core.ipsecs.com/rootkit/kernel-rootkit/kbeast-v1/" target="_blank" rel="external">Kbeast Source Code</a><br><a href="http://www.cs.rutgers.edu/~iftode/paladin08.pdf" target="_blank" rel="external">Automated Containment of Rootkit Attacks</a><br><a href="http://progdave.wikidot.com/how-to-build-kbeast-linux-rootkit-for-centos-6-4-x86-64" target="_blank" rel="external">How To Build Kbeast Linux Rootkit For Centos 64 X86 64</a></p>
+<h2 id="Connecting_the_camera">Connecting the camera</h2>
+<p>To connect the camera to the Pi, first make sure that it is powered off.</p>
+<p>The camera connects to the Pi via the CSI port, which is located in between the Ethernet and HDMI ports.</p>
+<p>To connect the camera, pull up the plastic bar on the CSI port and insert the camera’s ribbon cable into the port with the tin contacts facing the HDMI port. Make sure that it is evenly inserted. Afterwards, press down on the plastic bar to lock and secure the cable into the port.<br><img src="../images/csiport.jpg" alt="The ribbon cable correctly inserted into the CSI port"></p>
+<h2 id="Enabling_the_camera">Enabling the camera</h2>
+<p>Power on the Pi and run the following command to enter the Setup Options menu:</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ <span class="built_in">sudo</span> raspi-config</div></pre></td></tr></table></figure>
+
+<p>Click the down arrow button until you select the <code>Enable camera</code> option. Hit enter and select <code>&lt;Enable&gt;</code> when prompted <code>Enable support for Raspberry Pi camera?</code>. Then hit enter to return to the original menu.</p>
+<p>Click the right arrow button until you select <code>&lt;Finish&gt;</code>. Hit enter and when prompted to reboot, select <code>&lt;Yes&gt;</code> and then hit enter again to reboot the Pi.</p>
+<p>When the Pi is powering on, the camera’s red indicator light should turn on and you should see the view from the camera on your monitor for a few seconds before entering the Raspbian Desktop view.  </p>
+<h2 id="Streaming_video">Streaming video</h2>
+<p>Adapting <a href="http://raspi.tv/2013/how-to-stream-video-from-your-raspicam-to-your-nexus-7-tablet-using-vlc" target="_blank" rel="external">Alex’s tutorial</a>, I tried to stream video from the camera to my computer using VLC. In order to do so, you need to install VLC on both devices.</p>
+<p>When installing VLC on your computer, make sure you have the latest version, or streaming might not work properly. <strong>Note: My PC is currently running <em>VLC media player 2.1.5 Rincewind</em></strong></p>
+<h3 id="Install_VLC_on_RasPi">Install VLC on RasPi</h3>
+<p>To install VLC on the Pi, run the following commands</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">$ sudo apt-<span class="built_in">get</span> <span class="keyword">update</span></div><div class="line">$ sudo apt-<span class="built_in">get</span> install vlc</div></pre></td></tr></table></figure>
+
+<h2 id="Start_streaming">Start streaming</h2>
+<p>First get the Pi’s IP address by typing <code>ifconfig</code> into the terminal. The  <code>inet addr</code> under the <code>wlan0</code> interface is the Pi’s IP.</p>
+<p>Then run the following command to turn on the camera and stream video through port 1234.</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="title">raspivid</span> -o - -t <span class="number">0</span> -w <span class="number">640</span> -h <span class="number">360</span> -fps <span class="number">25</span>|cvlc -vvv <span class="url">stream:///dev/stdin</span> --sout <span class="string">'#standard{access=http,mux=ts,dst=:1234}'</span> :demux=h264</div></pre></td></tr></table></figure>
+
+<p>To view the stream on your computer, open up VLC.<br>Click on <code>Media</code> then <code>Open Network Stream</code>.<br>Then enter the URL of the Raspi’s video stream. This will be <code>http://[Raspi IP]:[port]</code>. Press <code>play</code> to view the stream.</p>
+<p>The stream might be laggy, so adjust the <strong>-w</strong>(width), <strong>-h</strong>(height), and <strong>-fps</strong>(frames per second) parameter values to scope out the maximum quality and frame rate that your PC and network can handle.</p>
+<p>Other notable parameters that you can change are the <strong>dst</strong>(port), which will change the stream’s output port, and the <strong>-t</strong> parameter. The <strong>t</strong> parameter is the time in milliseconds that the camera will run for. If it is set to 0, the camera will remain on and keep streaming until you exit with <code>ctrl+c</code></p>
 
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://dddotcom.github.io/2015/01/02/kbeast-overview/" data-id="a76lrahg0xe6a9ip" class="article-share-link">Share</a>
+      <a data-url="http://dddotcom.github.io/2015/01/16/streaming-video-from-pi/" data-id="3g5cjrlwlwaanmmw" class="article-share-link">Share</a>
       
-        <a href="http://dddotcom.github.io/2015/01/02/kbeast-overview/#disqus_thread" class="article-comment-link">Comments</a>
+        <a href="http://dddotcom.github.io/2015/01/16/streaming-video-from-pi/#disqus_thread" class="article-comment-link">Comments</a>
       
       
-  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ipsecs/">ipsecs</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/kbeast/">kbeast</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux-kernel/">linux kernel</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/rootkit/">rootkit</a></li></ul>
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/VLC/">VLC</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/raspberry-pi/">raspberry pi</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/streaming-video/">streaming video</a></li></ul>
 
     </footer>
   </div>
   
-    
-<nav id="article-nav">
-  
-    <a href="/2015/01/10/Kbeast-Source-Code-Analysis/" id="article-nav-newer" class="article-nav-link-wrap">
-      <strong class="article-nav-caption">Newer</strong>
-      <div class="article-nav-title">
-        
-          Kbeast Part 2: Source Code Analysis
-        
-      </div>
-    </a>
-  
-  
-    <a href="/2014/12/28/enabling-disqus-comments/" id="article-nav-older" class="article-nav-link-wrap">
-      <strong class="article-nav-caption">Older</strong>
-      <div class="article-nav-title">Enabling Disqus Comments</div>
-    </a>
-  
-</nav>
-
-  
 </article>
 
 
-<section id="comments">
-  <div id="disqus_thread">
-    <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-  </div>
-</section>
+  
+  
 </section>
         
           <aside id="sidebar">
@@ -272,13 +251,11 @@ ga('send', 'pageview');
 <script>
   var disqus_shortname = 'dddotcomgithubio';
   
-  var disqus_url = 'http://dddotcom.github.io/2015/01/02/kbeast-overview/';
-  
   (function(){
     var dsq = document.createElement('script');
     dsq.type = 'text/javascript';
     dsq.async = true;
-    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    dsq.src = '//' + disqus_shortname + '.disqus.com/count.js';
     (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
   })();
 </script>
